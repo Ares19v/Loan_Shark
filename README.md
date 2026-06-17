@@ -1,7 +1,5 @@
 <div align="center">
 
-<img src="https://img.shields.io/badge/🦈-LOAN%20SHARK-blue?style=for-the-badge&labelColor=0a0a0f&color=1a6ed8" alt="Loan Shark"/>
-
 # 🦈 LOAN SHARK
 
 ### *AI-Powered Loan Processing — 9 Agents. One Decision. Zero Shortcuts.*
