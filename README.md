@@ -6,14 +6,14 @@
 
 ### *AI-Powered Loan Processing — 9 Agents. One Decision. Zero Shortcuts.*
 
-[![Python](https://img.shields.io/badge/Python-3.11+-3776AB?style=flat-square&logo=python&logoColor=white)](https://python.org)
-[![Band SDK](https://img.shields.io/badge/Band%20SDK-Multi--Agent-6B46C1?style=flat-square)](https://app.band.ai)
-[![Groq](https://img.shields.io/badge/Groq-llama--3.3--70b-F55036?style=flat-square)](https://console.groq.com)
-[![LangGraph](https://img.shields.io/badge/LangGraph-Agent%20Runtime-1C7ED6?style=flat-square)](https://langchain-ai.github.io/langgraph/)
-[![Streamlit](https://img.shields.io/badge/Streamlit-UI-FF4B4B?style=flat-square&logo=streamlit&logoColor=white)](https://streamlit.io)
-[![Hackathon](https://img.shields.io/badge/Band%20of%20Agents-Hackathon%202026-gold?style=flat-square)](https://app.band.ai)
-[![Track](https://img.shields.io/badge/Track%203-Regulated%20%26%20High--Stakes-red?style=flat-square)]()
-[![Team](https://img.shields.io/badge/Team-TrenCoders-blueviolet?style=flat-square)]()
+[![Python](https://img.shields.io/badge/Python-3.11+-00BCD4?style=flat-square&labelColor=424242&logo=python&logoColor=white)](https://python.org)
+[![Band SDK](https://img.shields.io/badge/Band%20SDK-Multi--Agent-00BCD4?style=flat-square&labelColor=424242)](https://app.band.ai)
+[![Groq](https://img.shields.io/badge/Groq-llama--3.3--70b-00BCD4?style=flat-square&labelColor=424242)](https://console.groq.com)
+[![LangGraph](https://img.shields.io/badge/LangGraph-Agent%20Runtime-00BCD4?style=flat-square&labelColor=424242)](https://langchain-ai.github.io/langgraph/)
+[![Streamlit](https://img.shields.io/badge/Streamlit-UI-00BCD4?style=flat-square&labelColor=424242&logo=streamlit&logoColor=white)](https://streamlit.io)
+[![Hackathon](https://img.shields.io/badge/Band%20of%20Agents-Hackathon%202026-00BCD4?style=flat-square&labelColor=424242)](https://app.band.ai)
+[![Track](https://img.shields.io/badge/Track%203-Regulated%20%26%20High--Stakes-00BCD4?style=flat-square&labelColor=424242)]()
+[![Team](https://img.shields.io/badge/Team-TrenCoders-4CAF50?style=flat-square&labelColor=673AB7)]()
 
 <br/>
 
