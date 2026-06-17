@@ -94,6 +94,7 @@ def main():
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
             bufsize=1,
+            env={**os.environ, "PYTHONIOENCODING": "utf-8"},
         )
         processes.append((proc, name, color))
         stream_output(proc, name, color)

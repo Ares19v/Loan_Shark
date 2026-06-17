@@ -1,0 +1,42 @@
+# agent_config.yaml — Band agent credentials
+# Copy this file to `agent_config.yaml` and fill in each agent's UUID + API key
+# from app.band.ai (Agent settings page). The real file is GITIGNORED — never commit it.
+#
+# Tip: the agent's @mention handle (used by the pipeline) is configured separately
+# via BAND_USER_HANDLE / BAND_HANDLE_* in .env — see .env.example.
+
+intake:
+  agent_id: "PASTE-INTAKE-AGENT-UUID"
+  api_key:  "PASTE-INTAKE-AGENT-API-KEY"
+
+document:
+  agent_id: "PASTE-DOCUMENT-AGENT-UUID"
+  api_key:  "PASTE-DOCUMENT-AGENT-API-KEY"
+
+credit:
+  agent_id: "PASTE-CREDIT-AGENT-UUID"
+  api_key:  "PASTE-CREDIT-AGENT-API-KEY"
+
+fraud:
+  agent_id: "PASTE-FRAUD-AGENT-UUID"
+  api_key:  "PASTE-FRAUD-AGENT-API-KEY"
+
+risk:
+  agent_id: "PASTE-RISK-AGENT-UUID"
+  api_key:  "PASTE-RISK-AGENT-API-KEY"
+
+compliance:
+  agent_id: "PASTE-COMPLIANCE-AGENT-UUID"
+  api_key:  "PASTE-COMPLIANCE-AGENT-API-KEY"
+
+decision:
+  agent_id: "PASTE-DECISION-AGENT-UUID"
+  api_key:  "PASTE-DECISION-AGENT-API-KEY"
+
+pricing:
+  agent_id: "PASTE-PRICING-AGENT-UUID"
+  api_key:  "PASTE-PRICING-AGENT-API-KEY"
+
+communication:
+  agent_id: "PASTE-COMMUNICATION-AGENT-UUID"
+  api_key:  "PASTE-COMMUNICATION-AGENT-API-KEY"

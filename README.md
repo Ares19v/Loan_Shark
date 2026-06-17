@@ -1,7 +1,5 @@
 <div align="center">
 
-<img src="https://img.shields.io/badge/🦈-LOAN%20SHARK-blue?style=for-the-badge&labelColor=0a0a0f&color=1a6ed8" alt="Loan Shark"/>
-
 # 🦈 LOAN SHARK
 
 ### *AI-Powered Loan Processing — 9 Agents. One Decision. Zero Shortcuts.*
@@ -22,6 +20,12 @@
 <br/>
 
 </div>
+
+---
+
+> 📚 **Start here:** [`docs/00_MASTER_PLAN.md`](docs/00_MASTER_PLAN.md) — objectives, task board, and the 3-minute demo script.
+> The Streamlit UI **auto-advances** the pipeline by polling the **Band Human API** (no manual copy-paste) — see [`docs/01_BAND_INTEGRATION.md`](docs/01_BAND_INTEGRATION.md).
+> Teammates building with **Gemini Antigravity**: read [`docs/02_TEAMMATE_GUIDE_ANTIGRAVITY.md`](docs/02_TEAMMATE_GUIDE_ANTIGRAVITY.md) and the specs in [`docs/specs/`](docs/specs/).
 
 ---
 
@@ -87,28 +91,28 @@ The Band room history **is** the audit trail. Every agent handoff, every piece o
 │       │ NEW_LOAN_APPLICATION:                                           │
 │       │ (posts to Band room via REST API)                               │
 │       ▼                                                                 │
-│  ╔══════════════╗   ╔══════════════╗   ╔══════════════╗                │
+│  ╔══════════════╗   ╔══════════════╗   ╔══════════════╗                 │
 │  ║  [1] INTAKE  ║──▶║  [2] DOCUMENT║──▶║  [3] CREDIT  ║                │
-│  ║    AGENT     ║   ║    AGENT     ║   ║    AGENT     ║                │
-│  ╚══════════════╝   ╚══════════════╝   ╚══════════════╝                │
+│  ║    AGENT     ║   ║    AGENT     ║   ║    AGENT     ║                 │
+│  ╚══════════════╝   ╚══════════════╝   ╚══════════════╝                 │
 │         │                  │                  │                         │
 │  Validates &          Doc checks,        Credit grade,                  │
 │  structures           consistency,       risk band,                     │
 │  application          KYC flags          behaviour                      │
 │                                                                         │
-│  ╔══════════════╗   ╔══════════════╗   ╔══════════════╗                │
-│  ║  [4] FRAUD   ║──▶║  [5] RISK    ║──▶║  [6] COMPLIANCE              │
-│  ║    AGENT     ║   ║    AGENT     ║   ║    AGENT     ║                │
-│  ╚══════════════╝   ╚══════════════╝   ╚══════════════╝                │
+│  ╔══════════════╗   ╔══════════════╗   ╔══════════════╗                 │
+│  ║  [4] FRAUD   ║──▶║  [5] RISK    ║──▶║  [6] COMPLIANCE               │
+│  ║    AGENT     ║   ║    AGENT     ║   ║    AGENT     ║                 │
+│  ╚══════════════╝   ╚══════════════╝   ╚══════════════╝                 │
 │         │                  │                  │                         │
 │  Fraud signals,       DTI ratios,        RBI guidelines,                │
 │  identity checks,     employment          exposure limits,              │
 │  velocity checks      risk, collateral    fair lending                  │
 │                                                                         │
-│  ╔══════════════╗   ╔══════════════╗   ╔══════════════╗                │
+│  ╔══════════════╗   ╔══════════════╗   ╔══════════════╗                 │
 │  ║  [7] DECISION║──▶║  [8] PRICING ║──▶║  [9] COMMS   ║                │
-│  ║    AGENT     ║   ║    AGENT     ║   ║    AGENT     ║                │
-│  ╚══════════════╝   ╚══════════════╝   ╚══════════════╝                │
+│  ║    AGENT     ║   ║    AGENT     ║   ║    AGENT     ║                 │
+│  ╚══════════════╝   ╚══════════════╝   ╚══════════════╝                 │
 │         │                  │                  │                         │
 │  APPROVE /            Exact rate,        Formal sanction                │
 │  DENY /               EMI, fees,         or rejection                   │
@@ -116,10 +120,10 @@ The Band room history **is** the audit trail. Every agent handoff, every piece o
 │                                                                         │
 │                                          │                              │
 │                                          ▼                              │
-│                               ┌──────────────────────┐                 │
-│                               │  👤 HUMAN LOAN OFFICER│                 │
-│                               │     REVIEW & SIGN-OFF │                 │
-│                               └──────────────────────┘                 │
+│                               ┌──────────────────────┐                  │
+│                               │👤 HUMAN LOAN OFFICER │                 │
+│                               │    REVIEW & SIGN-OFF │                  │
+│                               └──────────────────────┘                  │
 └─────────────────────────────────────────────────────────────────────────┘
 ```
 
@@ -149,7 +153,7 @@ Checks whether the applicant's claimed documents are sufficient and internally c
 **Trigger:** `DOC_VERIFICATION:`  
 **Output:** `CREDIT_ANALYSIS:` → `@FraudAgent`
 
-Interprets the raw credit score into an actionable credit profile. Maps the score to a credit grade (A+ to F), assesses credit utilization health, identifies risk bands, and determines the maximum loan-to-income ratio permissible for this credit profile. Also flags first-time borrowers (no credit history) with appropriate risk annotations.
+Interprets the raw credit score into an actionable credit profile. Maps the score to a credit grade (A+ to D, with U for unscored / first-time borrowers), assesses credit utilization health, identifies risk bands, and determines the maximum loan-to-income ratio permissible for this credit profile. Also flags first-time borrowers (no credit history) with appropriate risk annotations.
 
 ---
 
@@ -293,12 +297,14 @@ uv sync
 cp .env.example .env
 ```
 
-Edit `.env`:
+Edit `.env` (the UI talks to Band via the Human API — full reference in [`docs/01_BAND_INTEGRATION.md`](docs/01_BAND_INTEGRATION.md)):
 ```env
 GROQ_API_KEY=your-groq-api-key-here
 BAND_REST_URL=https://app.band.ai/
 BAND_WS_URL=wss://app.band.ai/api/v1/socket/websocket
-BAND_ROOM_ID=your-room-id-here
+BAND_HUMAN_API_KEY=your-band-human-api-key   # UI uses this to post + poll messages
+BAND_CHAT_ID=your-chat-id                     # the LoanShark room id
+BAND_USER_HANDLE=your-band-username           # agent @mention handles derive from this
 ```
 
 ### Step 3 — Set Up Band Agents
@@ -324,7 +330,7 @@ document:
 ```bash
 uv run python preflight.py
 ```
-All 94 checks should pass (or show only Band credential warnings until you fill `agent_config.yaml`).
+All structural checks should pass; credential checks warn/fail until you fill `.env` + `agent_config.yaml`.
 
 ### Step 5 — Launch All 9 Agents
 ```bash

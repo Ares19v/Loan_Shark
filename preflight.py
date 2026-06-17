@@ -20,6 +20,12 @@ import traceback
 from pathlib import Path
 from dotenv import dotenv_values
 
+# Windows consoles default to cp1252 and choke on box-drawing/emoji output.
+try:
+    sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+except Exception:
+    pass
+
 # ─────────────────────────────────────────────
 # COLORS
 # ─────────────────────────────────────────────
@@ -112,7 +118,9 @@ REQUIRED_FILES = [
     "pyproject.toml",
     "README.md",
     ".streamlit/config.toml",
-    "schema/messages.py",
+    "band_client.py",
+    "shared/parsing.py",
+    "agents/base.py",
     "agents/intake/agent.py",
     "agents/document/agent.py",
     "agents/credit/agent.py",
@@ -140,10 +148,12 @@ if env_path.exists():
     env = dotenv_values(str(env_path))
 
 REQUIRED_ENV = {
-    "GROQ_API_KEY":   ("critical", "Required to call LLM for all 9 agents"),
-    "BAND_WS_URL":    ("critical", "Band WebSocket URL"),
-    "BAND_REST_URL":  ("critical", "Band REST API URL"),
-    "BAND_ROOM_ID":   ("warn",     "Room ID — fill after creating room on band.ai"),
+    "GROQ_API_KEY":       ("critical", "Required to call LLM for all 9 agents"),
+    "BAND_WS_URL":        ("critical", "Band WebSocket URL"),
+    "BAND_REST_URL":      ("critical", "Band REST API URL"),
+    "BAND_HUMAN_API_KEY": ("warn",     "Human API key — UI uses it to post + poll Band"),
+    "BAND_CHAT_ID":       ("warn",     "Chat/room id — fill after creating the room"),
+    "BAND_USER_HANDLE":   ("warn",     "Band username — agent @mention handles derive from it"),
 }
 
 for key, (severity, hint) in REQUIRED_ENV.items():
@@ -201,7 +211,8 @@ for agent in EXPECTED_AGENTS:
 section("5 · Python Syntax (AST parse)")
 
 PY_FILES = [
-    "app.py", "run_all.py", "preflight.py", "schema/messages.py"
+    "app.py", "run_all.py", "preflight.py",
+    "band_client.py", "shared/parsing.py", "agents/base.py",
 ] + [f"agents/{a}/agent.py" for a in EXPECTED_AGENTS]
 
 for f in PY_FILES:
