@@ -12,7 +12,7 @@
 We already have a 9-agent loan pipeline. It *looks* finished but the **live demo does not actually run end-to-end** — the Streamlit UI can't really talk to Band, so today it needs manual copy-paste 9 times. **No judge will be impressed by copy-paste.**
 
 This plan does three things in ~1 day:
-1. **Fix the make-or-break:** make the demo run **fully automatically** — one form submit → all 9 agents → Human Gate, zero pasting. *(Owner: Navnit + Claude Code)*
+1. **Fix the make-or-break:** make the demo run **fully automatically** — one form submit → all 9 agents → Human Gate, zero pasting. *(Owner: Navnit — core integration)*
 2. **Add the regulated-workflow "wow":** live audit trail, exportable decision record, a stronger Human Gate. *(Owners: teammates in Antigravity)*
 3. **Nail the pitch:** bulletproof 3 demo scenarios + a tight demo video + clean README. *(Owner: teammate)*
 
@@ -100,7 +100,7 @@ Full details and exact contracts: [`01_BAND_INTEGRATION.md`](01_BAND_INTEGRATION
 ## 6. The Task Board
 
 Priorities: **P0 = the demo is dead without it. P1 = this is how we actually win. P2 = bonus if time remains.**
-Owners: **CC = Navnit + Claude Code. TM = teammate (Gemini Antigravity).**
+Owners: **CC = Navnit (core integration). TM = teammate (Gemini Antigravity).**
 Each teammate task has a full spec in [`specs/`](specs/). Update the Status box as you go.
 
 ### P0 — Make it work (CC, critical path)
@@ -125,7 +125,7 @@ Each teammate task has a full spec in [`specs/`](specs/). Update the Status box 
 
 ## 7. Timeline (≈1 day, parallelized)
 
-| Block | CC (Navnit + Claude Code) | TM (teammates in Antigravity) |
+| Block | CC (Navnit — core integration) | TM (teammates in Antigravity) |
 |---|---|---|
 | **1. Kickoff** | Docs + specs pushed to `main` ✅ (this set) | Pull repo, read this + your spec, set up Antigravity |
 | **2. Core build** | T1–T4 (Band client, app rewire, parsing, agents) | T6 audit panel, T7 Human Gate++ (against current `app.py`) |

@@ -17,7 +17,7 @@ Live multi-agent demos break (network, quota, a slow agent). A judge sees the *s
 ## 4. Acceptance Criteria
 - [ ] A small **"Demo-safe mode"** toggle (sidebar/checkbox). When ON, submitting a demo scenario **does not call Band**; instead it feeds a canned sequence of agent messages through the *existing* `detect_message_stage` path on a ~1.2s timer, so the 9 cards light up and the Human Gate appears exactly like the real run.
 - [ ] Canned sequences exist for all 3 scenarios and yield APPROVE / COUNTER_OFFER / DENY respectively, with realistic JSON payloads (including `compliance_notes`, `letter_body`).
-- [ ] When the toggle is OFF, behavior is the real Band post+poll (owned by Claude Code) — demo-safe mode must not break or bypass it.
+- [ ] When the toggle is OFF, behavior is the real Band post+poll (owned by the core integration workstream) — demo-safe mode must not break or bypass it.
 - [ ] Canned data lives in a single `demo_replay.py` (or a clearly marked block) so it's easy to find and doesn't entangle real logic.
 - [ ] **README.md** refreshed: 1-paragraph pitch, architecture diagram (the 9-agent flow), the winning thesis, accurate setup steps (uv, .env, agent_config.yaml, run_all, streamlit), and **reconciled vocabulary** (see `00_MASTER_PLAN.md` §10 — grades A+/A/B+/B/C/D/U, risk LOW/MEDIUM/HIGH/VERY_HIGH). No "LoanPilot" anywhere.
 - [ ] A **`docs/DEMO_SCRIPT.md`** with the 3-min run-of-show (copy/expand from `00_MASTER_PLAN.md` §9) and a shot list for the video.
@@ -33,7 +33,7 @@ Live multi-agent demos break (network, quota, a slow agent). A judge sees the *s
 - Type hints + f-strings; no bare `except`.
 
 ## 7. Out of Scope
-- The real Band post/poll loop (Claude Code).
+- The real Band post/poll loop (core integration workstream).
 - New agent logic.
 
 ## 8. Verification

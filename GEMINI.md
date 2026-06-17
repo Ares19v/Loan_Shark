@@ -18,7 +18,7 @@
 - **Paste the whole task spec** (`docs/specs/spec_*.md`) as your prompt. The specs are written in the format Antigravity follows best (Objective → User Stories → Acceptance Criteria → Data Flow → Constraints → Out-of-Scope → Verification).
 - **Verify UI changes in the browser.** When you change `app.py`, run the app and use Antigravity's browser + screenshot to confirm the form, the 9-card tracker, and the Human Gate render and behave correctly. Attach screenshots to your Walkthrough.
 - **Commit often, in small atomic commits.** Antigravity agents sometimes terminate mid-task — frequent commits mean you never lose much. Use `feat:` / `fix:` / `docs:` prefixes.
-- **Stay inside your spec's scope.** Each spec lists Out-of-Scope items. Do not refactor `band_client.py`, the agents, or the message protocol — those are owned by the Claude Code workstream. If a spec needs a change there, flag it in the master plan instead.
+- **Stay inside your spec's scope.** Each spec lists Out-of-Scope items. Do not refactor `band_client.py`, the agents, or the message protocol — those are owned by the core integration workstream. If a spec needs a change there, flag it in the master plan instead.
 
 ## Hard guardrails (repeat of the critical ones)
 
@@ -30,4 +30,4 @@
 
 ## Model suggestion
 
-Gemini 3 Pro (Planning mode) for design + multi-file work; Gemini 3 Flash for quick edits. Claude Sonnet inside Antigravity is a good second opinion for tricky typed-Python logic.
+Gemini 3 Pro (Planning mode) for design + multi-file work; Gemini 3 Flash for quick edits.

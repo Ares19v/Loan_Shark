@@ -1,6 +1,6 @@
 # Teammate Guide — Building Loan Shark with Gemini Antigravity
 
-> **For teammates using Google Gemini Antigravity (not Claude Code).**
+> **For teammates using Google Gemini Antigravity.**
 > This guide shows you *exactly* how to turn a spec in `docs/specs/` into working, committed code.
 > Read [`00_MASTER_PLAN.md`](00_MASTER_PLAN.md) first to know which task is yours.
 
@@ -105,7 +105,7 @@ Produce an Implementation Plan first.
 `app.py` is shared. To stay out of each other's way:
 - Build your feature as a **self-contained function** the spec names (e.g. `render_audit_panel(messages)`, `render_human_gate(...)`), defined in a clearly marked section. The integration owner wires the single call site.
 - **Always `git pull --rebase origin main` before you push.** Commit small and often (Antigravity agents sometimes terminate mid-task — frequent commits = little lost work).
-- If your spec says a piece is owned by the Claude Code workstream (Band client, agents, parsing), **do not touch it** — request the change in the master plan instead.
+- If your spec says a piece is owned by the core integration workstream (Band client, agents, parsing), **do not touch it** — request the change in the master plan instead.
 
 ---
 

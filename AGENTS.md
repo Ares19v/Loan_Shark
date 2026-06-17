@@ -1,6 +1,6 @@
 # AGENTS.md — Loan Shark Project Rules
 
-> This file is read automatically by AI coding agents (Gemini Antigravity, Claude Code, Cursor, etc.).
+> This file is read automatically by AI coding agents (Gemini Antigravity, Cursor, etc.).
 > It defines the non-negotiable rules for working in this repo. **Read it before writing any code.**
 > Antigravity users: `GEMINI.md` adds Antigravity-specific behavior on top of this file.
 
@@ -79,7 +79,7 @@ Intake on bad data ──INTAKE_ERROR:──→ halts pipeline
 
 **NEVER:**
 - Commit secrets. `.env`, `agent_config.yaml`, and any API key stay **gitignored**. If you generate example values, use obvious placeholders.
-- Add Claude or any AI as a GitHub collaborator. The only collaborator is **ninjacode911**.
+- Add any AI tool or bot as a GitHub collaborator or commit co-author. Repo collaborators are the human team only.
 - Remove the Human Gate or let any agent auto-finalize / auto-dispatch a letter. Human sign-off is mandatory and is the whole point of Track 3.
 - Rename message tags, `@mention` handles, or the agent folder names without updating every consumer (`app.py`, all agents, `preflight.py`).
 - Weaken the Compliance Agent's hard blocks — they must override positive credit/risk scores.

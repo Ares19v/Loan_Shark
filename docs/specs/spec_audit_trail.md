@@ -41,7 +41,7 @@ Track 3 is judged on "complete audit trail for regulatory review." We already ca
 - Keep the dark theme; match existing CSS classes.
 
 ## 7. Out of Scope
-- `band_client.py`, the agents, `shared/parsing.py`, the polling loop (Claude Code owns these).
+- `band_client.py`, the agents, `shared/parsing.py`, the polling loop (the core integration workstream owns these).
 - Real database persistence — the in-session list is enough for the demo.
 
 ## 8. Verification
