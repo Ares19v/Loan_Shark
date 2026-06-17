@@ -248,6 +248,8 @@ if "intake_handle" not in st.session_state:
     )
 if "poll_since" not in st.session_state:
     st.session_state.poll_since = None
+if "seen_message_ids" not in st.session_state:
+    st.session_state.seen_message_ids = set()
 if "active_demo" not in st.session_state:
     st.session_state.active_demo = None
 
@@ -390,11 +392,19 @@ def auto_poll_band() -> None:
     except BandClientError:
         return  # transient — retry on the next tick
 
+    # Process oldest-first so the feed order and the `since` cursor stay consistent.
+    messages = sorted(messages, key=lambda m: m.get("inserted_at") or "")
+
     advanced = False
     for msg in messages:
         timestamp = msg.get("inserted_at")
         if timestamp:
             st.session_state.poll_since = timestamp
+        msg_id = msg.get("id")
+        if msg_id is not None:
+            if msg_id in st.session_state.seen_message_ids:
+                continue  # already ingested — avoid duplicate feed entries
+            st.session_state.seen_message_ids.add(msg_id)
         if msg.get("sender_type") == "User":
             continue  # skip the UI's own kickoff message
         if ingest_agent_message(msg.get("content", "")):
@@ -584,6 +594,7 @@ with left_col:
             st.session_state.loan_decision = None
             st.session_state.loan_letter = None
             st.session_state.poll_since = now_iso()
+            st.session_state.seen_message_ids = set()
 
             st.session_state.agent_messages.append({
                 "stage": "system",
@@ -631,7 +642,8 @@ with right_col:
     compliance_done = any(m["stage"] == "decision"      for m in st.session_state.agent_messages)
     decision_done   = any(m["stage"] == "pricing"       for m in st.session_state.agent_messages)
     pricing_done    = any(m["stage"] == "communication" for m in st.session_state.agent_messages)
-    comm_done       = st.session_state.loan_decision is not None
+    comm_done       = (st.session_state.loan_letter is not None
+                       or any(m["stage"] == "human_gate" for m in st.session_state.agent_messages))
 
     all_stages = [
         ("Intake Agent",        "📥", intake_done),

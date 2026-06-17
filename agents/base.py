@@ -71,7 +71,10 @@ def _send_instructions(handle: str | None, output_tag: str) -> str:
         who = f"the next agent ({handle})"
     else:
         operator = os.getenv("BAND_OPERATOR_HANDLE", "").strip()
-        target = f'mentions=["{operator}"]' if operator else "mentions=[<the human loan officer handle>]"
+        if not operator:
+            user = os.getenv("BAND_USER_HANDLE", "").strip().lstrip("@")
+            operator = f"@{user}" if user else ""
+        target = f'mentions=["{operator}"]' if operator else 'mentions=["@operator"]'
         who = "the human loan officer for review"
     return f"""
 
