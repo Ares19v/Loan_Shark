@@ -14,6 +14,12 @@ import os
 import signal
 import time
 
+# Windows consoles default to cp1252 and choke on box-drawing/emoji output.
+try:
+    sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+except Exception:
+    pass
+
 # ─────────────────────────────────────────────
 # AGENT DEFINITIONS
 # ─────────────────────────────────────────────
@@ -94,7 +100,7 @@ def main():
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
             bufsize=1,
-            env={**os.environ, "PYTHONIOENCODING": "utf-8"},
+            env={**os.environ, "PYTHONIOENCODING": "utf-8", "PYTHONUNBUFFERED": "1"},
         )
         processes.append((proc, name, color))
         stream_output(proc, name, color)
