@@ -7,21 +7,12 @@ Role: Receives fraud-checked application from Fraud Detection Agent.
 - Passes forward to Compliance Agent
 """
 
-import asyncio
-import logging
 import os
 import sys
 
-from dotenv import load_dotenv
-from band import Agent
-from band.adapters import LangGraphAdapter
-from band.config import load_agent_config
-from langchain_openai import ChatOpenAI
-from langgraph.checkpoint.memory import InMemorySaver
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 
-sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-
-logger = logging.getLogger(__name__)
+from agents.base import run_agent
 
 # ─────────────────────────────────────────────
 # SYSTEM PROMPT
@@ -121,44 +112,15 @@ IMPORTANT RULES:
 """
 
 # ─────────────────────────────────────────────
-# MAIN
+# RUN
 # ─────────────────────────────────────────────
 
-async def main():
-    load_dotenv()
-
-    agent_id, api_key = load_agent_config("risk")
-
-    llm = ChatOpenAI(
-        model="llama-3.3-70b-versatile",
-        openai_api_key=os.getenv("GROQ_API_KEY"),
-        openai_api_base="https://api.groq.com/openai/v1",
-        temperature=0.1,
-    )
-
-    adapter = LangGraphAdapter(
-        llm=llm,
-        checkpointer=InMemorySaver(),
-        system_prompt=RISK_SYSTEM_PROMPT,
-    )
-
-    agent = Agent.create(
-        adapter=adapter,
-        agent_id=agent_id,
-        api_key=api_key,
-        ws_url=os.getenv("BAND_WS_URL"),
-        rest_url=os.getenv("BAND_REST_URL"),
-    )
-
-    logging.basicConfig(
-        level=logging.INFO,
-        format="%(asctime)s [RISK] %(message)s",
-        datefmt="%H:%M:%S",
-    )
-
-    logger.info("✅ Risk Agent running — waiting for applications to assess...")
-    await agent.run()
-
-
 if __name__ == "__main__":
-    asyncio.run(main())
+    run_agent(
+        config_key="risk",
+        label="RISK",
+        system_prompt=RISK_SYSTEM_PROMPT,
+        output_tag="RISK_ASSESSMENT:",
+        next_config_key="compliance",
+        next_display_name="ComplianceAgent",
+    )

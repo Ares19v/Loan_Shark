@@ -12,12 +12,18 @@ What this does:
 import streamlit as st
 import os
 import time
-import json
-import re
-import requests
-import asyncio
 from datetime import datetime
 from dotenv import load_dotenv
+
+from band_client import (
+    post_message,
+    poll_messages,
+    now_iso,
+    BandClientError,
+    is_configured,
+    missing_config,
+)
+from shared.parsing import extract_json_from_message
 
 load_dotenv()
 
@@ -233,8 +239,15 @@ if "loan_letter" not in st.session_state:
     st.session_state.loan_letter = None
 if "application_id" not in st.session_state:
     st.session_state.application_id = None
-if "band_room_id" not in st.session_state:
-    st.session_state.band_room_id = os.getenv("BAND_ROOM_ID", "")
+if "chat_id" not in st.session_state:
+    st.session_state.chat_id = os.getenv("BAND_CHAT_ID", "")
+if "intake_handle" not in st.session_state:
+    _user = os.getenv("BAND_USER_HANDLE", "").strip().lstrip("@")
+    st.session_state.intake_handle = os.getenv(
+        "BAND_HANDLE_INTAKE", f"@{_user}/IntakeAgent" if _user else ""
+    )
+if "poll_since" not in st.session_state:
+    st.session_state.poll_since = None
 if "active_demo" not in st.session_state:
     st.session_state.active_demo = None
 
@@ -303,19 +316,9 @@ def format_currency(amount, currency="INR"):
     return f"${amount:,.0f}"
 
 
-def extract_json_from_message(text):
-    pattern = r"```json\s*([\s\S]*?)\s*```"
-    match = re.search(pattern, text)
-    if match:
-        try:
-            return json.loads(match.group(1))
-        except:
-            return None
-    return None
-
-
 def detect_message_stage(text):
-    if "LOAN_APPLICATION:" in text:       return "doc"
+    if "NEW_LOAN_APPLICATION:" in text:   return "system"   # the UI's own kickoff message
+    elif "LOAN_APPLICATION:" in text:     return "doc"
     elif "DOC_VERIFICATION:" in text:     return "credit"
     elif "CREDIT_ANALYSIS:" in text:      return "fraud"
     elif "FRAUD_REPORT:" in text:         return "risk"
@@ -343,27 +346,62 @@ Collateral: {form_data.get('collateral_offered', 'None')}
 Please process this application through the pipeline."""
 
 
-def post_to_band_room(message, room_id, agent_api_key):
-    """
-    Post a message to the Band room to trigger the agent pipeline.
-    This uses the Band REST API.
-    In the real implementation, you'd use the Band SDK's messaging capability.
-    For the demo, we simulate this or use the REST endpoint.
-    """
-    # Band REST API endpoint for posting messages
-    url = f"{os.getenv('BAND_REST_URL', 'https://app.band.ai')}api/v1/rooms/{room_id}/messages"
-    headers = {
-        "Authorization": f"Bearer {agent_api_key}",
-        "Content-Type": "application/json",
-    }
-    payload = {"content": message}
+def ingest_agent_message(content: str) -> bool:
+    """Classify one Band message and update pipeline state.
 
-    try:
-        response = requests.post(url, headers=headers, json=payload, timeout=10)
-        return response.status_code == 200 or response.status_code == 201
-    except Exception as e:
-        st.error(f"Failed to post to Band room: {e}")
+    Returns True if the message advanced the pipeline (an agent output), False
+    for the UI's own kickoff / unrecognized chatter. Shared by the auto-poller
+    and the manual fallback so both behave identically.
+    """
+    stage = detect_message_stage(content)
+    if stage == "system":
         return False
+
+    data = extract_json_from_message(content)
+
+    # Decision Agent posts LOAN_DECISION_READY (stage 'pricing') with the recommendation.
+    if stage == "pricing" and data:
+        st.session_state.loan_decision = data
+    # Pricing Agent posts PRICING_TERMS (stage 'communication') — merge final terms in.
+    if stage == "communication" and data and st.session_state.loan_decision:
+        st.session_state.loan_decision = {**st.session_state.loan_decision, **data}
+    # Communication Agent posts FORMAL_LETTER_READY -> open the Human Gate.
+    if stage == "human_gate" and data:
+        st.session_state.loan_letter = data
+        st.session_state.pipeline_status = "awaiting_approval"
+
+    st.session_state.agent_messages.append({
+        "stage": stage,
+        "time": datetime.now().strftime("%H:%M:%S"),
+        "text": content.strip(),
+    })
+    return True
+
+
+@st.fragment(run_every=2)
+def auto_poll_band() -> None:
+    """Every 2s while the pipeline is running, pull new agent messages and auto-advance."""
+    if st.session_state.pipeline_status != "running":
+        return
+    if not st.session_state.chat_id or not is_configured():
+        return
+    try:
+        messages = poll_messages(st.session_state.chat_id, st.session_state.poll_since)
+    except BandClientError:
+        return  # transient — retry on the next tick
+
+    advanced = False
+    for msg in messages:
+        timestamp = msg.get("inserted_at")
+        if timestamp:
+            st.session_state.poll_since = timestamp
+        if msg.get("sender_type") == "User":
+            continue  # skip the UI's own kickoff message
+        if ingest_agent_message(msg.get("content", "")):
+            advanced = True
+
+    if advanced:
+        st.rerun()
 
 
 # ─────────────────────────────────────────────
@@ -477,18 +515,25 @@ with left_col:
 
         st.divider()
 
-        # Band Room Config
-        st.markdown("**Band Room Configuration**")
-        band_room_id = st.text_input(
-            "Band Room ID",
-            value=st.session_state.band_room_id,
-            placeholder="Paste your Band room ID here",
-            help="The ID of the Band room where your 3 agents are participants"
+        # Band Connection
+        st.markdown("**Band Connection**")
+        band_chat_id = st.text_input(
+            "Band Chat / Room ID",
+            value=st.session_state.chat_id,
+            placeholder="chat_id of your LoanShark room",
+            help="From app.band.ai — the room where all 9 agents are participants",
         )
-        intake_api_key = st.text_input(
-            "Intake Agent API Key (for posting)",
+        intake_handle = st.text_input(
+            "Intake Agent Handle (@mention to start)",
+            value=st.session_state.intake_handle,
+            placeholder="@yourusername/IntakeAgent",
+            help="Band routes the kickoff to this handle — must match the Intake agent's handle.",
+        )
+        band_human_key = st.text_input(
+            "Band Human API Key",
             type="password",
-            placeholder="Your Intake agent's Band API key",
+            placeholder="Leave blank if set in .env (BAND_HUMAN_API_KEY)",
+            help="Your personal Band API key — the UI uses it to post and poll messages.",
         )
 
         submitted = st.form_submit_button(
@@ -498,8 +543,18 @@ with left_col:
         )
 
     if submitted:
-        if not applicant_name or not band_room_id or not intake_api_key:
-            st.error("Please fill in applicant name, Band Room ID, and Intake Agent API Key.")
+        if band_human_key.strip():
+            os.environ["BAND_HUMAN_API_KEY"] = band_human_key.strip()
+        if band_chat_id.strip():
+            os.environ["BAND_CHAT_ID"] = band_chat_id.strip()
+
+        if not applicant_name or not band_chat_id.strip() or not intake_handle.strip():
+            st.error("Please fill in applicant name, Band Chat ID, and Intake Agent Handle.")
+        elif not is_configured():
+            st.error(
+                f"Band not configured — missing: {', '.join(missing_config())}. "
+                "Set BAND_HUMAN_API_KEY in .env or paste it in the field above."
+            )
         else:
             form_data = {
                 "applicant_name": applicant_name,
@@ -519,12 +574,16 @@ with left_col:
 
             message = build_application_message(form_data)
             app_id = f"APP-{str(int(time.time()))[-6:]}"
+            chat_id = band_chat_id.strip()
+            handle = intake_handle.strip()
             st.session_state.application_id = app_id
-            st.session_state.band_room_id = band_room_id
+            st.session_state.chat_id = chat_id
+            st.session_state.intake_handle = handle
             st.session_state.pipeline_status = "running"
             st.session_state.agent_messages = []
             st.session_state.loan_decision = None
             st.session_state.loan_letter = None
+            st.session_state.poll_since = now_iso()
 
             st.session_state.agent_messages.append({
                 "stage": "system",
@@ -532,23 +591,24 @@ with left_col:
                 "text": f"✅ Application {app_id} submitted. Triggering 9-agent pipeline via Band...",
             })
 
-            # Post to Band room
-            success = post_to_band_room(message, band_room_id, intake_api_key)
-
-            if success:
+            # Post the kickoff to the Band room via the Human API (must @mention Intake).
+            content = f"{handle} {message}"
+            try:
+                post_message(chat_id, content, mention_handle=handle)
                 st.session_state.agent_messages.append({
                     "stage": "system",
                     "time": datetime.now().strftime("%H:%M:%S"),
-                    "text": "📡 Message posted to Band room. Intake Agent will respond shortly...",
+                    "text": "📡 Posted to Band. Agents are processing — the pipeline will advance automatically...",
                 })
-                st.success("Application submitted to Band room! Watch the agent pipeline on the right →")
-            else:
+                st.success("Submitted to Band! Watch the pipeline auto-advance on the right →")
+            except BandClientError as exc:
+                st.session_state.pipeline_status = "idle"
                 st.session_state.agent_messages.append({
-                    "stage": "system",
+                    "stage": "error",
                     "time": datetime.now().strftime("%H:%M:%S"),
-                    "text": f"⚠️ Could not post to Band REST API automatically. Manually post this to your Band room:\n\n{message}",
+                    "text": f"⚠️ Could not post to Band: {exc}",
                 })
-                st.warning("Could not auto-post to Band. Copy the message above and paste it into your Band room manually.")
+                st.error(f"Could not post to Band room: {exc}")
 
             st.rerun()
 
@@ -602,6 +662,9 @@ with right_col:
         </div>
         """, unsafe_allow_html=True)
 
+    # Auto-advance: poll Band every 2s while the pipeline is running
+    auto_poll_band()
+
     st.divider()
 
     # Agent message feed
@@ -653,35 +716,15 @@ with right_col:
             </div>
             """, unsafe_allow_html=True)
 
-    # Manual message entry for demo
+    # Manual fallback — only needed if the UI cannot reach Band to auto-poll
     if status == "running":
-        st.divider()
-        st.markdown('<div class="section-header">📥 Paste Agent Response (from Band Room)</div>', unsafe_allow_html=True)
-        st.caption("Copy the agent's message from your Band room and paste it here to advance the pipeline.")
-
-        agent_response = st.text_area("Paste Band room message here:", height=150, key="agent_paste")
-
-        if st.button("Process Message", use_container_width=True):
-            if agent_response:
-                stage = detect_message_stage(agent_response)
-                timestamp = datetime.now().strftime("%H:%M:%S")
-                data = extract_json_from_message(agent_response)
-
-                # Capture decision summary when Decision Agent fires
-                if stage == "pricing" and data:
-                    st.session_state.loan_decision = data
-
-                # Capture formal letter when Communication Agent fires
-                if stage == "human_gate" and data:
-                    st.session_state.loan_letter = data
-                    st.session_state.pipeline_status = "awaiting_approval"
-
-                st.session_state.agent_messages.append({
-                    "stage": stage,
-                    "time": timestamp,
-                    "text": agent_response.strip(),
-                })
-                st.rerun()
+        with st.expander("📥 Manual fallback — paste an agent message"):
+            st.caption("Auto-advance polls Band every 2s. Use this only if polling is unavailable.")
+            agent_response = st.text_area("Paste Band room message here:", height=130, key="agent_paste")
+            if st.button("Process Message", use_container_width=True):
+                if agent_response:
+                    ingest_agent_message(agent_response)
+                    st.rerun()
 
     # ─── HUMAN GATE ───
     if status == "awaiting_approval" and st.session_state.loan_letter:

@@ -7,21 +7,12 @@ Role: Final agent in the pipeline.
 - Posts the letter to the Band room for human loan officer review and sign-off
 """
 
-import asyncio
-import logging
 import os
 import sys
 
-from dotenv import load_dotenv
-from band import Agent
-from band.adapters import LangGraphAdapter
-from band.config import load_agent_config
-from langchain_openai import ChatOpenAI
-from langgraph.checkpoint.memory import InMemorySaver
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 
-sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-
-logger = logging.getLogger(__name__)
+from agents.base import run_agent
 
 COMMUNICATION_SYSTEM_PROMPT = """
 You are the Communication Agent in Loan Shark, a 9-agent AI loan processing pipeline.
@@ -88,34 +79,11 @@ IMPORTANT RULES:
 - Do not add commentary outside the JSON block
 """
 
-async def main():
-    load_dotenv()
-    agent_id, api_key = load_agent_config("communication")
-
-    llm = ChatOpenAI(
-        model="llama-3.3-70b-versatile",
-        openai_api_key=os.getenv("GROQ_API_KEY"),
-        openai_api_base="https://api.groq.com/openai/v1",
+if __name__ == "__main__":
+    run_agent(
+        config_key="communication",
+        label="COMMUNICATION",
+        system_prompt=COMMUNICATION_SYSTEM_PROMPT,
+        output_tag="FORMAL_LETTER_READY:",
         temperature=0.3,   # slightly higher for natural letter writing
     )
-
-    adapter = LangGraphAdapter(
-        llm=llm,
-        checkpointer=InMemorySaver(),
-        system_prompt=COMMUNICATION_SYSTEM_PROMPT,
-    )
-
-    agent = Agent.create(
-        adapter=adapter,
-        agent_id=agent_id,
-        api_key=api_key,
-        ws_url=os.getenv("BAND_WS_URL"),
-        rest_url=os.getenv("BAND_REST_URL"),
-    )
-
-    logging.basicConfig(level=logging.INFO, format="%(asctime)s [COMMUNICATION] %(message)s", datefmt="%H:%M:%S")
-    logger.info("✅ Communication Agent running...")
-    await agent.run()
-
-if __name__ == "__main__":
-    asyncio.run(main())

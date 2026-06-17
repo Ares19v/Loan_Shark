@@ -1,0 +1,1 @@
+"""Loan Shark agent package."""
