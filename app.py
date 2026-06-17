@@ -168,6 +168,8 @@ html, body, [class*="css"] {
 .agent-message.risk   { border-left-color: #f6ad55; }
 .agent-message.decision { border-left-color: #9f7aea; }
 .agent-message.system { border-left-color: #68d391; }
+.agent-message.thought { border-left-color: #718096; font-style: italic; opacity: 0.85; }
+.agent-message.error { border-left-color: #fc8181; background: rgba(252, 129, 129, 0.05); }
 
 /* Decision card */
 .decision-card {
@@ -244,7 +246,7 @@ if "chat_id" not in st.session_state:
 if "intake_handle" not in st.session_state:
     _user = os.getenv("BAND_USER_HANDLE", "").strip().lstrip("@")
     st.session_state.intake_handle = os.getenv(
-        "BAND_HANDLE_INTAKE", f"@{_user}/IntakeAgent" if _user else ""
+        "BAND_HANDLE_INTAKE", f"@{_user}/intakeagent" if _user else ""
     )
 if "poll_since" not in st.session_state:
     st.session_state.poll_since = None
@@ -348,15 +350,43 @@ Collateral: {form_data.get('collateral_offered', 'None')}
 Please process this application through the pipeline."""
 
 
-def ingest_agent_message(content: str) -> bool:
+def ingest_agent_message(msg_or_content: str | dict[str, Any]) -> bool:
     """Classify one Band message and update pipeline state.
 
     Returns True if the message advanced the pipeline (an agent output), False
     for the UI's own kickoff / unrecognized chatter. Shared by the auto-poller
     and the manual fallback so both behave identically.
     """
+    if isinstance(msg_or_content, str):
+        content = msg_or_content.strip()
+        msg_type = "text"
+        sender_name = "Agent"
+        sender_type = "Agent"
+    else:
+        content = msg_or_content.get("content", "").strip()
+        msg_type = msg_or_content.get("message_type", "text")
+        sender = msg_or_content.get("sender") or {}
+        sender_name = msg_or_content.get("sender_name")
+        if not sender_name and isinstance(sender, dict):
+            sender_name = sender.get("name")
+        if not sender_name:
+            sender_name = "System"
+
+        sender_type = msg_or_content.get("sender_type")
+        if not sender_type and isinstance(sender, dict):
+            sender_type = sender.get("type")
+        if not sender_type:
+            sender_type = "User"
+
     stage = detect_message_stage(content)
-    if stage == "system":
+    
+    if msg_type == "thought":
+        stage = "thought"
+    elif msg_type == "error":
+        stage = "error"
+
+    # Skip UI kickoff and user chatter in the agent feed
+    if stage == "system" and sender_type == "User":
         return False
 
     data = extract_json_from_message(content)
@@ -374,8 +404,9 @@ def ingest_agent_message(content: str) -> bool:
 
     st.session_state.agent_messages.append({
         "stage": stage,
+        "sender_name": sender_name,
         "time": datetime.now().strftime("%H:%M:%S"),
-        "text": content.strip(),
+        "text": content,
     })
     return True
 
@@ -405,9 +436,12 @@ def auto_poll_band() -> None:
             if msg_id in st.session_state.seen_message_ids:
                 continue  # already ingested — avoid duplicate feed entries
             st.session_state.seen_message_ids.add(msg_id)
-        if msg.get("sender_type") == "User":
+            
+        sender = msg.get("sender") or {}
+        sender_type = sender.get("type") if isinstance(sender, dict) else msg.get("sender_type")
+        if sender_type == "User":
             continue  # skip the UI's own kickoff message
-        if ingest_agent_message(msg.get("content", "")):
+        if ingest_agent_message(msg):
             advanced = True
 
     if advanced:
@@ -691,19 +725,21 @@ with right_col:
         )
     else:
         for msg in st.session_state.agent_messages:
+            sender_name = msg.get("sender_name", "Agent")
             stage_label = {
-                "doc":           "Intake Agent → Document",
-                "credit":        "Document Agent → Credit",
-                "fraud":         "Credit Agent → Fraud",
-                "risk":          "Fraud Agent → Risk",
-                "compliance":    "Risk Agent → Compliance",
-                "decision":      "Compliance Agent → Decision",
-                "pricing":       "Decision Agent → Pricing",
-                "communication": "Pricing Agent → Communication",
-                "human_gate":    "Communication Agent → Human",
+                "doc":           f"📥 {sender_name} → Document Handoff",
+                "credit":        f"📄 {sender_name} → Credit Verification",
+                "fraud":         f"💳 {sender_name} → Credit Analysis",
+                "risk":          f"🔍 {sender_name} → Fraud Assessment",
+                "compliance":    f"📊 {sender_name} → Risk Assessment",
+                "decision":      f"⚖️ {sender_name} → Compliance Check",
+                "pricing":       f"🎯 {sender_name} → Loan Decision",
+                "communication": f"💰 {sender_name} → Pricing Terms",
+                "human_gate":    f"✉️ {sender_name} → Sanction Letter",
                 "system":        "System",
-                "error":         "Error",
-            }.get(msg["stage"], "System")
+                "thought":       f"🧠 {sender_name} (Thinking)",
+                "error":         f"⚠️ {sender_name} (Error)",
+            }.get(msg["stage"], sender_name)
 
             color = {
                 "doc":           "#63b3ed",
@@ -716,6 +752,7 @@ with right_col:
                 "communication": "#9f7aea",
                 "human_gate":    "#ed64a6",
                 "system":        "#a0aec0",
+                "thought":       "#718096",
                 "error":         "#fc8181",
             }.get(msg["stage"], "#a0aec0")
 
@@ -724,7 +761,7 @@ with right_col:
                 <span style="font-size:0.7rem; color:{color}; font-weight:700">
                     {stage_label} · {msg['time']}
                 </span><br/>
-                {msg['text'][:500]}{'...' if len(msg['text']) > 500 else ''}
+                {msg['text'][:800]}{'...' if len(msg['text']) > 800 else ''}
             </div>
             """, unsafe_allow_html=True)
 
