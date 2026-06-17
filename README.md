@@ -85,28 +85,28 @@ The Band room history **is** the audit trail. Every agent handoff, every piece o
 │       │ NEW_LOAN_APPLICATION:                                           │
 │       │ (posts to Band room via REST API)                               │
 │       ▼                                                                 │
-│  ╔══════════════╗   ╔══════════════╗   ╔══════════════╗                │
+│  ╔══════════════╗   ╔══════════════╗   ╔══════════════╗                 │
 │  ║  [1] INTAKE  ║──▶║  [2] DOCUMENT║──▶║  [3] CREDIT  ║                │
-│  ║    AGENT     ║   ║    AGENT     ║   ║    AGENT     ║                │
-│  ╚══════════════╝   ╚══════════════╝   ╚══════════════╝                │
+│  ║    AGENT     ║   ║    AGENT     ║   ║    AGENT     ║                 │
+│  ╚══════════════╝   ╚══════════════╝   ╚══════════════╝                 │
 │         │                  │                  │                         │
 │  Validates &          Doc checks,        Credit grade,                  │
 │  structures           consistency,       risk band,                     │
 │  application          KYC flags          behaviour                      │
 │                                                                         │
-│  ╔══════════════╗   ╔══════════════╗   ╔══════════════╗                │
-│  ║  [4] FRAUD   ║──▶║  [5] RISK    ║──▶║  [6] COMPLIANCE              │
-│  ║    AGENT     ║   ║    AGENT     ║   ║    AGENT     ║                │
-│  ╚══════════════╝   ╚══════════════╝   ╚══════════════╝                │
+│  ╔══════════════╗   ╔══════════════╗   ╔══════════════╗                 │
+│  ║  [4] FRAUD   ║──▶║  [5] RISK    ║──▶║  [6] COMPLIANCE               │
+│  ║    AGENT     ║   ║    AGENT     ║   ║    AGENT     ║                 │
+│  ╚══════════════╝   ╚══════════════╝   ╚══════════════╝                 │
 │         │                  │                  │                         │
 │  Fraud signals,       DTI ratios,        RBI guidelines,                │
 │  identity checks,     employment          exposure limits,              │
 │  velocity checks      risk, collateral    fair lending                  │
 │                                                                         │
-│  ╔══════════════╗   ╔══════════════╗   ╔══════════════╗                │
+│  ╔══════════════╗   ╔══════════════╗   ╔══════════════╗                 │
 │  ║  [7] DECISION║──▶║  [8] PRICING ║──▶║  [9] COMMS   ║                │
-│  ║    AGENT     ║   ║    AGENT     ║   ║    AGENT     ║                │
-│  ╚══════════════╝   ╚══════════════╝   ╚══════════════╝                │
+│  ║    AGENT     ║   ║    AGENT     ║   ║    AGENT     ║                 │
+│  ╚══════════════╝   ╚══════════════╝   ╚══════════════╝                 │
 │         │                  │                  │                         │
 │  APPROVE /            Exact rate,        Formal sanction                │
 │  DENY /               EMI, fees,         or rejection                   │
@@ -114,10 +114,10 @@ The Band room history **is** the audit trail. Every agent handoff, every piece o
 │                                                                         │
 │                                          │                              │
 │                                          ▼                              │
-│                               ┌──────────────────────┐                 │
-│                               │  👤 HUMAN LOAN OFFICER│                 │
-│                               │     REVIEW & SIGN-OFF │                 │
-│                               └──────────────────────┘                 │
+│                               ┌──────────────────────┐                  │
+│                               │👤 HUMAN LOAN OFFICER│                │
+│                               │    REVIEW & SIGN-OFF │                 │
+│                               └──────────────────────┘                  │
 └─────────────────────────────────────────────────────────────────────────┘
 ```
 
