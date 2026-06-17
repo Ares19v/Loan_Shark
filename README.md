@@ -115,8 +115,8 @@ The Band room history **is** the audit trail. Every agent handoff, every piece o
 │                                          │                              │
 │                                          ▼                              │
 │                               ┌──────────────────────┐                  │
-│                               │👤 HUMAN LOAN OFFICER│                │
-│                               │    REVIEW & SIGN-OFF │                 │
+│                               │👤 HUMAN LOAN OFFICER │                 │
+│                               │    REVIEW & SIGN-OFF │                  │
 │                               └──────────────────────┘                  │
 └─────────────────────────────────────────────────────────────────────────┘
 ```
