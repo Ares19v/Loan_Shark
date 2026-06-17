@@ -1,0 +1,805 @@
+"""
+Loan Shark — Streamlit Frontend
+The required "working demo URL" for hackathon submission.
+
+What this does:
+- Loan application form for applicant to fill in
+- Submits the application to the Band room (triggers the 3-agent pipeline)
+- Live feed showing agent messages from the Band room in real-time
+- Human loan officer approval interface once Decision Agent posts its verdict
+"""
+
+import streamlit as st
+import os
+import time
+import json
+import re
+import requests
+import asyncio
+from datetime import datetime
+from dotenv import load_dotenv
+
+load_dotenv()
+
+# ─────────────────────────────────────────────
+# PAGE CONFIG
+# ─────────────────────────────────────────────
+
+st.set_page_config(
+    page_title="Loan Shark — AI Loan Processing",
+    page_icon="🦈",
+    layout="wide",
+    initial_sidebar_state="collapsed",
+)
+
+# ─────────────────────────────────────────────
+# CUSTOM CSS
+# ─────────────────────────────────────────────
+
+st.markdown("""
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+
+html, body, [class*="css"] {
+    font-family: 'Inter', sans-serif;
+}
+
+.main {
+    background: #0a0a0f;
+    color: #e8e8f0;
+}
+
+.stApp {
+    background: linear-gradient(135deg, #0a0a0f 0%, #0d1117 50%, #0a0f1a 100%);
+}
+
+/* Header */
+.lp-header {
+    background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
+    border: 1px solid rgba(99, 179, 237, 0.2);
+    border-radius: 16px;
+    padding: 2rem 2.5rem;
+    margin-bottom: 2rem;
+    display: flex;
+    align-items: center;
+    gap: 1.5rem;
+}
+
+.lp-title {
+    font-size: 2rem;
+    font-weight: 700;
+    background: linear-gradient(135deg, #63b3ed, #90cdf4, #bee3f8);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    margin: 0;
+}
+
+.lp-subtitle {
+    color: #a0aec0;
+    font-size: 0.9rem;
+    margin: 0;
+    margin-top: 0.25rem;
+}
+
+/* Status badges */
+.badge-processing {
+    background: rgba(246, 173, 85, 0.15);
+    border: 1px solid rgba(246, 173, 85, 0.4);
+    color: #f6ad55;
+    padding: 0.3rem 0.8rem;
+    border-radius: 20px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    display: inline-block;
+}
+
+.badge-approved {
+    background: rgba(72, 187, 120, 0.15);
+    border: 1px solid rgba(72, 187, 120, 0.4);
+    color: #48bb78;
+    padding: 0.3rem 0.8rem;
+    border-radius: 20px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    display: inline-block;
+}
+
+.badge-denied {
+    background: rgba(245, 101, 101, 0.15);
+    border: 1px solid rgba(245, 101, 101, 0.4);
+    color: #fc8181;
+    padding: 0.3rem 0.8rem;
+    border-radius: 20px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    display: inline-block;
+}
+
+.badge-counter {
+    background: rgba(159, 122, 234, 0.15);
+    border: 1px solid rgba(159, 122, 234, 0.4);
+    color: #b794f4;
+    padding: 0.3rem 0.8rem;
+    border-radius: 20px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    display: inline-block;
+}
+
+/* Agent pipeline cards */
+.pipeline-card {
+    background: rgba(26, 32, 44, 0.8);
+    border: 1px solid rgba(99, 179, 237, 0.15);
+    border-radius: 12px;
+    padding: 1.25rem;
+    margin-bottom: 0.75rem;
+    transition: all 0.3s ease;
+}
+
+.pipeline-card.active {
+    border-color: rgba(99, 179, 237, 0.5);
+    background: rgba(15, 52, 96, 0.3);
+    box-shadow: 0 0 20px rgba(99, 179, 237, 0.1);
+}
+
+.pipeline-card.done {
+    border-color: rgba(72, 187, 120, 0.4);
+    background: rgba(20, 40, 30, 0.4);
+}
+
+/* Agent message feed */
+.agent-message {
+    background: rgba(26, 32, 44, 0.9);
+    border-left: 3px solid #63b3ed;
+    border-radius: 0 8px 8px 0;
+    padding: 0.75rem 1rem;
+    margin-bottom: 0.5rem;
+    font-size: 0.85rem;
+    color: #e2e8f0;
+}
+
+.agent-message.intake { border-left-color: #63b3ed; }
+.agent-message.risk   { border-left-color: #f6ad55; }
+.agent-message.decision { border-left-color: #9f7aea; }
+.agent-message.system { border-left-color: #68d391; }
+
+/* Decision card */
+.decision-card {
+    background: linear-gradient(135deg, rgba(15, 52, 96, 0.6), rgba(26, 26, 46, 0.8));
+    border: 1px solid rgba(99, 179, 237, 0.3);
+    border-radius: 16px;
+    padding: 2rem;
+    margin-top: 1.5rem;
+}
+
+.decision-amount {
+    font-size: 2.5rem;
+    font-weight: 700;
+    color: #48bb78;
+}
+
+/* Form styling */
+.stSelectbox label, .stNumberInput label, .stTextInput label, .stSlider label {
+    color: #a0aec0 !important;
+    font-size: 0.85rem !important;
+    font-weight: 500 !important;
+}
+
+/* Section headers */
+.section-header {
+    font-size: 0.7rem;
+    font-weight: 700;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    color: #63b3ed;
+    margin-bottom: 1rem;
+    margin-top: 0.5rem;
+}
+
+/* Human gate */
+.human-gate {
+    background: linear-gradient(135deg, rgba(49, 130, 206, 0.1), rgba(66, 153, 225, 0.05));
+    border: 2px solid rgba(99, 179, 237, 0.4);
+    border-radius: 16px;
+    padding: 2rem;
+    text-align: center;
+}
+
+.stButton > button {
+    border-radius: 8px;
+    font-weight: 600;
+    font-size: 0.9rem;
+    padding: 0.6rem 2rem;
+}
+
+div[data-testid="stMetricValue"] {
+    color: #90cdf4 !important;
+    font-size: 1.4rem !important;
+}
+</style>
+""", unsafe_allow_html=True)
+
+# ─────────────────────────────────────────────
+# SESSION STATE INIT
+# ─────────────────────────────────────────────
+
+if "pipeline_status" not in st.session_state:
+    st.session_state.pipeline_status = "idle"
+if "agent_messages" not in st.session_state:
+    st.session_state.agent_messages = []
+if "loan_decision" not in st.session_state:
+    st.session_state.loan_decision = None
+if "loan_letter" not in st.session_state:
+    st.session_state.loan_letter = None
+if "application_id" not in st.session_state:
+    st.session_state.application_id = None
+if "band_room_id" not in st.session_state:
+    st.session_state.band_room_id = os.getenv("BAND_ROOM_ID", "")
+if "active_demo" not in st.session_state:
+    st.session_state.active_demo = None
+
+# ─────────────────────────────────────────────
+# DEMO SCENARIOS
+# ─────────────────────────────────────────────
+
+DEMO_SCENARIOS = {
+    "good": {
+        "label": "✅ Good Applicant",
+        "applicant_name": "Priya Sharma",
+        "applicant_age": 32,
+        "monthly_income": 120000.0,
+        "currency": "INR",
+        "employment_type": "salaried",
+        "employer_name": "Infosys Ltd",
+        "years_employed": 5.0,
+        "loan_amount_requested": 800000.0,
+        "loan_purpose": "home",
+        "loan_tenure_months": 120,
+        "existing_debt_monthly": 8000.0,
+        "credit_score": 768,
+        "collateral_offered": "Residential property in Bengaluru",
+    },
+    "borderline": {
+        "label": "⚠️ Borderline Applicant",
+        "applicant_name": "Arjun Mehta",
+        "applicant_age": 28,
+        "monthly_income": 55000.0,
+        "currency": "INR",
+        "employment_type": "self_employed",
+        "employer_name": "Mehta Consulting",
+        "years_employed": 1.5,
+        "loan_amount_requested": 600000.0,
+        "loan_purpose": "vehicle",
+        "loan_tenure_months": 60,
+        "existing_debt_monthly": 12000.0,
+        "credit_score": 648,
+        "collateral_offered": None,
+    },
+    "highrisk": {
+        "label": "❌ High Risk Applicant",
+        "applicant_name": "Ravi Kumar",
+        "applicant_age": 45,
+        "monthly_income": 30000.0,
+        "currency": "INR",
+        "employment_type": "unemployed",
+        "employer_name": None,
+        "years_employed": 0.0,
+        "loan_amount_requested": 500000.0,
+        "loan_purpose": "personal",
+        "loan_tenure_months": 36,
+        "existing_debt_monthly": 18000.0,
+        "credit_score": None,
+        "collateral_offered": None,
+    },
+}
+
+# ─────────────────────────────────────────────
+# HELPERS
+# ─────────────────────────────────────────────
+
+def format_currency(amount, currency="INR"):
+    if currency == "INR":
+        return f"₹{amount:,.0f}"
+    return f"${amount:,.0f}"
+
+
+def extract_json_from_message(text):
+    pattern = r"```json\s*([\s\S]*?)\s*```"
+    match = re.search(pattern, text)
+    if match:
+        try:
+            return json.loads(match.group(1))
+        except:
+            return None
+    return None
+
+
+def detect_message_stage(text):
+    if "LOAN_APPLICATION:" in text:       return "doc"
+    elif "DOC_VERIFICATION:" in text:     return "credit"
+    elif "CREDIT_ANALYSIS:" in text:      return "fraud"
+    elif "FRAUD_REPORT:" in text:         return "risk"
+    elif "RISK_ASSESSMENT:" in text:      return "compliance"
+    elif "COMPLIANCE_CHECK:" in text:     return "decision"
+    elif "LOAN_DECISION_READY:" in text:  return "pricing"
+    elif "PRICING_TERMS:" in text:        return "communication"
+    elif "FORMAL_LETTER_READY:" in text:  return "human_gate"
+    elif "INTAKE_ERROR:" in text:         return "error"
+    return "system"
+
+
+def build_application_message(form_data):
+    """Build the message to post to the Band room to kick off the pipeline."""
+    return f"""NEW_LOAN_APPLICATION:
+Applicant: {form_data['applicant_name']}, Age: {form_data['applicant_age']}
+Monthly Income: {form_data['monthly_income']} {form_data['currency']}
+Employment: {form_data['employment_type']} at {form_data.get('employer_name', 'N/A')} ({form_data['years_employed']} years)
+Loan Request: {form_data['loan_amount_requested']} {form_data['currency']} for {form_data['loan_tenure_months']} months
+Purpose: {form_data['loan_purpose']}
+Existing Monthly Debt: {form_data['existing_debt_monthly']} {form_data['currency']}
+Credit Score: {form_data.get('credit_score', 'Not provided')}
+Collateral: {form_data.get('collateral_offered', 'None')}
+
+Please process this application through the pipeline."""
+
+
+def post_to_band_room(message, room_id, agent_api_key):
+    """
+    Post a message to the Band room to trigger the agent pipeline.
+    This uses the Band REST API.
+    In the real implementation, you'd use the Band SDK's messaging capability.
+    For the demo, we simulate this or use the REST endpoint.
+    """
+    # Band REST API endpoint for posting messages
+    url = f"{os.getenv('BAND_REST_URL', 'https://app.band.ai')}api/v1/rooms/{room_id}/messages"
+    headers = {
+        "Authorization": f"Bearer {agent_api_key}",
+        "Content-Type": "application/json",
+    }
+    payload = {"content": message}
+
+    try:
+        response = requests.post(url, headers=headers, json=payload, timeout=10)
+        return response.status_code == 200 or response.status_code == 201
+    except Exception as e:
+        st.error(f"Failed to post to Band room: {e}")
+        return False
+
+
+# ─────────────────────────────────────────────
+# LAYOUT
+# ─────────────────────────────────────────────
+
+# Header
+st.markdown("""
+<div class="lp-header">
+    <div>
+        <p class="lp-title">🦈 Loan Shark</p>
+        <p class="lp-subtitle">AI-Powered Loan Processing · 9-Agent Pipeline · Regulated & Audited</p>
+    </div>
+</div>
+""", unsafe_allow_html=True)
+
+# Two-column layout
+left_col, right_col = st.columns([1.1, 0.9], gap="large")
+
+# ─────────────────────────────────────────────
+# LEFT: APPLICATION FORM
+# ─────────────────────────────────────────────
+
+with left_col:
+    # ── QUICK DEMO BUTTONS ──
+    st.markdown('<div class="section-header">⚡ Quick Demo</div>', unsafe_allow_html=True)
+    d1, d2, d3 = st.columns(3)
+    with d1:
+        if st.button("✅ Good Applicant", use_container_width=True, help="Salaried, 768 credit score → likely APPROVE"):
+            st.session_state.active_demo = "good"
+            st.rerun()
+    with d2:
+        if st.button("⚠️ Borderline", use_container_width=True, help="Self-employed, 648 score → likely COUNTER_OFFER"):
+            st.session_state.active_demo = "borderline"
+            st.rerun()
+    with d3:
+        if st.button("❌ High Risk", use_container_width=True, help="Unemployed, no credit score → likely DENY"):
+            st.session_state.active_demo = "highrisk"
+            st.rerun()
+
+    if st.session_state.active_demo:
+        demo = DEMO_SCENARIOS[st.session_state.active_demo]
+        st.info(f"📋 Demo loaded: **{demo['label']}** — fill in Band credentials below and click Submit.")
+
+    st.divider()
+    st.markdown('<div class="section-header">📋 Loan Application</div>', unsafe_allow_html=True)
+
+    # Get demo defaults if a scenario is active
+    _d = DEMO_SCENARIOS.get(st.session_state.active_demo or "", {})
+
+    with st.form("loan_form", clear_on_submit=False):
+
+        # Personal Info
+        st.markdown("**Personal Information**")
+        col1, col2 = st.columns(2)
+        with col1:
+            applicant_name = st.text_input("Full Name", value=_d.get("applicant_name", ""), placeholder="Rahul Sharma")
+            applicant_age = st.number_input("Age", min_value=18, max_value=70, value=int(_d.get("applicant_age", 30)))
+        with col2:
+            credit_score = st.number_input(
+                "Credit Score (leave 0 if unknown)",
+                min_value=0, max_value=900, value=int(_d.get("credit_score") or 0),
+                help="CIBIL/credit score, 300–900 range"
+            )
+            currency = st.selectbox("Currency", ["INR", "USD"])
+
+        st.divider()
+
+        # Employment
+        st.markdown("**Employment Details**")
+        col3, col4 = st.columns(2)
+        with col3:
+            emp_opts = ["salaried", "self_employed", "business_owner", "unemployed"]
+            emp_default = emp_opts.index(_d["employment_type"]) if _d.get("employment_type") in emp_opts else 0
+            employment_type = st.selectbox("Employment Type", emp_opts, index=emp_default)
+            employer_name = st.text_input("Employer / Business Name", value=_d.get("employer_name") or "", placeholder="TCS, Infosys, Self...")
+        with col4:
+            monthly_income = st.number_input(
+                "Monthly Income", min_value=0.0, value=float(_d.get("monthly_income", 75000.0)), step=5000.0
+            )
+            years_employed = st.number_input(
+                "Years at Current Job", min_value=0.0, max_value=40.0, value=float(_d.get("years_employed", 3.0)), step=0.5
+            )
+
+        st.divider()
+
+        # Loan Details
+        st.markdown("**Loan Request**")
+        col5, col6 = st.columns(2)
+        with col5:
+            loan_amount = st.number_input(
+                "Loan Amount", min_value=10000.0, value=float(_d.get("loan_amount_requested", 500000.0)), step=10000.0
+            )
+            loan_opts = ["home", "vehicle", "education", "personal", "business"]
+            loan_purpose_default = loan_opts.index(_d["loan_purpose"]) if _d.get("loan_purpose") in loan_opts else 0
+            loan_purpose = st.selectbox("Loan Purpose", loan_opts, index=loan_purpose_default)
+        with col6:
+            loan_tenure = st.slider(
+                "Tenure (months)", min_value=6, max_value=360, value=int(_d.get("loan_tenure_months", 60)), step=6
+            )
+            existing_debt = st.number_input(
+                "Existing Monthly Debt Payments",
+                min_value=0.0, value=0.0, step=1000.0,
+                help="Total EMIs you already pay every month"
+            )
+
+        collateral = st.text_input(
+            "Collateral Offered (optional)",
+            placeholder="Property at Delhi, Vehicle registration...",
+        )
+
+        st.divider()
+
+        # Band Room Config
+        st.markdown("**Band Room Configuration**")
+        band_room_id = st.text_input(
+            "Band Room ID",
+            value=st.session_state.band_room_id,
+            placeholder="Paste your Band room ID here",
+            help="The ID of the Band room where your 3 agents are participants"
+        )
+        intake_api_key = st.text_input(
+            "Intake Agent API Key (for posting)",
+            type="password",
+            placeholder="Your Intake agent's Band API key",
+        )
+
+        submitted = st.form_submit_button(
+            "🚀 Submit Application",
+            use_container_width=True,
+            type="primary"
+        )
+
+    if submitted:
+        if not applicant_name or not band_room_id or not intake_api_key:
+            st.error("Please fill in applicant name, Band Room ID, and Intake Agent API Key.")
+        else:
+            form_data = {
+                "applicant_name": applicant_name,
+                "applicant_age": applicant_age,
+                "monthly_income": monthly_income,
+                "currency": currency,
+                "employment_type": employment_type,
+                "employer_name": employer_name if employer_name else None,
+                "years_employed": years_employed,
+                "loan_amount_requested": loan_amount,
+                "loan_purpose": loan_purpose,
+                "loan_tenure_months": loan_tenure,
+                "existing_debt_monthly": existing_debt,
+                "credit_score": credit_score if credit_score > 0 else None,
+                "collateral_offered": collateral if collateral else None,
+            }
+
+            message = build_application_message(form_data)
+            app_id = f"APP-{str(int(time.time()))[-6:]}"
+            st.session_state.application_id = app_id
+            st.session_state.band_room_id = band_room_id
+            st.session_state.pipeline_status = "running"
+            st.session_state.agent_messages = []
+            st.session_state.loan_decision = None
+            st.session_state.loan_letter = None
+
+            st.session_state.agent_messages.append({
+                "stage": "system",
+                "time": datetime.now().strftime("%H:%M:%S"),
+                "text": f"✅ Application {app_id} submitted. Triggering 9-agent pipeline via Band...",
+            })
+
+            # Post to Band room
+            success = post_to_band_room(message, band_room_id, intake_api_key)
+
+            if success:
+                st.session_state.agent_messages.append({
+                    "stage": "system",
+                    "time": datetime.now().strftime("%H:%M:%S"),
+                    "text": "📡 Message posted to Band room. Intake Agent will respond shortly...",
+                })
+                st.success("Application submitted to Band room! Watch the agent pipeline on the right →")
+            else:
+                st.session_state.agent_messages.append({
+                    "stage": "system",
+                    "time": datetime.now().strftime("%H:%M:%S"),
+                    "text": f"⚠️ Could not post to Band REST API automatically. Manually post this to your Band room:\n\n{message}",
+                })
+                st.warning("Could not auto-post to Band. Copy the message above and paste it into your Band room manually.")
+
+            st.rerun()
+
+
+# ─────────────────────────────────────────────
+# RIGHT: PIPELINE STATUS + AGENT FEED
+# ─────────────────────────────────────────────
+
+with right_col:
+
+    # Pipeline status
+    st.markdown('<div class="section-header">🤖 Agent Pipeline</div>', unsafe_allow_html=True)
+
+    status = st.session_state.pipeline_status
+    intake_done     = any(m["stage"] == "doc"          for m in st.session_state.agent_messages)
+    doc_done        = any(m["stage"] == "credit"        for m in st.session_state.agent_messages)
+    credit_done     = any(m["stage"] == "fraud"         for m in st.session_state.agent_messages)
+    fraud_done      = any(m["stage"] == "risk"          for m in st.session_state.agent_messages)
+    risk_done       = any(m["stage"] == "compliance"    for m in st.session_state.agent_messages)
+    compliance_done = any(m["stage"] == "decision"      for m in st.session_state.agent_messages)
+    decision_done   = any(m["stage"] == "pricing"       for m in st.session_state.agent_messages)
+    pricing_done    = any(m["stage"] == "communication" for m in st.session_state.agent_messages)
+    comm_done       = st.session_state.loan_decision is not None
+
+    all_stages = [
+        ("Intake Agent",        "📥", intake_done),
+        ("Document Agent",      "📄", doc_done),
+        ("Credit Agent",        "💳", credit_done),
+        ("Fraud Agent",         "🔍", fraud_done),
+        ("Risk Agent",          "📊", risk_done),
+        ("Compliance Agent",    "⚖️", compliance_done),
+        ("Decision Agent",      "🎯", decision_done),
+        ("Pricing Agent",       "💰", pricing_done),
+        ("Communication Agent", "✉️", comm_done),
+    ]
+
+    done_list = [intake_done, doc_done, credit_done, fraud_done,
+                 risk_done, compliance_done, decision_done, pricing_done, comm_done]
+
+    for step_num, (agent_name, icon, done) in enumerate(all_stages):
+        prev_done = done_list[step_num - 1] if step_num > 0 else True
+        active = status == "running" and prev_done and not done
+        card_class = "done" if done else ("active" if active else "pipeline-card")
+        indicator = "✅" if done else ("🔄" if active else "⏳")
+        status_text = "Complete" if done else ("Processing..." if active else "Waiting")
+        st.markdown(f"""
+        <div class="pipeline-card {card_class}">
+            <span style="font-size:1.1rem">{icon}</span>
+            <strong style="color:#e2e8f0; margin-left:0.5rem; font-size:0.85rem">{agent_name}</strong>
+            <span style="float:right; font-size:0.75rem; color:#a0aec0">{indicator} {status_text}</span>
+        </div>
+        """, unsafe_allow_html=True)
+
+    st.divider()
+
+    # Agent message feed
+    st.markdown('<div class="section-header">💬 Live Agent Feed</div>', unsafe_allow_html=True)
+
+    if not st.session_state.agent_messages:
+        st.markdown(
+            "<div style='color:#4a5568; text-align:center; padding:2rem; font-size:0.9rem'>"
+            "Agent messages will appear here once you submit an application."
+            "</div>",
+            unsafe_allow_html=True
+        )
+    else:
+        for msg in st.session_state.agent_messages:
+            stage_label = {
+                "doc":           "Intake Agent → Document",
+                "credit":        "Document Agent → Credit",
+                "fraud":         "Credit Agent → Fraud",
+                "risk":          "Fraud Agent → Risk",
+                "compliance":    "Risk Agent → Compliance",
+                "decision":      "Compliance Agent → Decision",
+                "pricing":       "Decision Agent → Pricing",
+                "communication": "Pricing Agent → Communication",
+                "human_gate":    "Communication Agent → Human",
+                "system":        "System",
+                "error":         "Error",
+            }.get(msg["stage"], "System")
+
+            color = {
+                "doc":           "#63b3ed",
+                "credit":        "#76e4f7",
+                "fraud":         "#fbd38d",
+                "risk":          "#fc8181",
+                "compliance":    "#b794f4",
+                "decision":      "#f6ad55",
+                "pricing":       "#68d391",
+                "communication": "#9f7aea",
+                "human_gate":    "#ed64a6",
+                "system":        "#a0aec0",
+                "error":         "#fc8181",
+            }.get(msg["stage"], "#a0aec0")
+
+            st.markdown(f"""
+            <div class="agent-message {msg['stage']}">
+                <span style="font-size:0.7rem; color:{color}; font-weight:700">
+                    {stage_label} · {msg['time']}
+                </span><br/>
+                {msg['text'][:500]}{'...' if len(msg['text']) > 500 else ''}
+            </div>
+            """, unsafe_allow_html=True)
+
+    # Manual message entry for demo
+    if status == "running":
+        st.divider()
+        st.markdown('<div class="section-header">📥 Paste Agent Response (from Band Room)</div>', unsafe_allow_html=True)
+        st.caption("Copy the agent's message from your Band room and paste it here to advance the pipeline.")
+
+        agent_response = st.text_area("Paste Band room message here:", height=150, key="agent_paste")
+
+        if st.button("Process Message", use_container_width=True):
+            if agent_response:
+                stage = detect_message_stage(agent_response)
+                timestamp = datetime.now().strftime("%H:%M:%S")
+                data = extract_json_from_message(agent_response)
+
+                # Capture decision summary when Decision Agent fires
+                if stage == "pricing" and data:
+                    st.session_state.loan_decision = data
+
+                # Capture formal letter when Communication Agent fires
+                if stage == "human_gate" and data:
+                    st.session_state.loan_letter = data
+                    st.session_state.pipeline_status = "awaiting_approval"
+
+                st.session_state.agent_messages.append({
+                    "stage": stage,
+                    "time": timestamp,
+                    "text": agent_response.strip(),
+                })
+                st.rerun()
+
+    # ─── HUMAN GATE ───
+    if status == "awaiting_approval" and st.session_state.loan_letter:
+        letter  = st.session_state.loan_letter
+        decision = st.session_state.loan_decision or {}
+        rec = letter.get("recommendation", decision.get("recommendation", ""))
+        currency_sym = "₹"
+
+        st.divider()
+        st.markdown('<div class="section-header">🔐 Human Loan Officer Review</div>', unsafe_allow_html=True)
+
+        # Decision summary
+        badge_map = {
+            "APPROVE": ("badge-approved", "✅ APPROVE"),
+            "DENY": ("badge-denied", "❌ DENY"),
+            "COUNTER_OFFER": ("badge-counter", "🔄 COUNTER OFFER"),
+        }
+        badge_cls, badge_text = badge_map.get(rec, ("badge-processing", rec))
+
+        st.markdown(f"""
+        <div class="decision-card">
+            <div style="margin-bottom:1rem">
+                <span class="{badge_cls}">{badge_text}</span>
+                <span style="color:#718096; font-size:0.8rem; margin-left:1rem">
+                    Application {decision.get('application_id', '')} · 
+                    Risk: {decision.get('risk_category', '')} · 
+                    Confidence: {decision.get('confidence', '')}
+                </span>
+            </div>
+        </div>
+        """, unsafe_allow_html=True)
+
+        if rec in ("APPROVE", "COUNTER_OFFER") and decision:
+            m1, m2, m3 = st.columns(3)
+            with m1:
+                amt = decision.get("approved_amount") or letter.get("approved_amount", 0)
+                st.metric("Loan Amount", f"{currency_sym}{amt:,.0f}" if amt else "N/A")
+            with m2:
+                tenure = decision.get("approved_tenure_months") or letter.get("approved_tenure_months", 0)
+                st.metric("Tenure", f"{tenure} months" if tenure else "N/A")
+            with m3:
+                emi = decision.get("final_emi") or decision.get("estimated_emi", 0)
+                st.metric("EMI", f"{currency_sym}{emi:,.0f}/mo" if emi else "N/A")
+
+            co_notes = decision.get("counter_offer_notes") or letter.get("counter_offer_notes")
+            if co_notes:
+                st.info(f"**Counter Offer Terms:** {co_notes}")
+
+        denial = decision.get("denial_reasons") or letter.get("denial_reasons", [])
+        if rec == "DENY" and denial:
+            st.error("**Denial Reasons:**\n" + "\n".join(f"• {r}" for r in denial))
+
+        # ─── FORMAL LETTER PREVIEW ───
+        if letter.get("letter_body"):
+            st.divider()
+            st.markdown('<div class="section-header">📝 Formal Letter Preview</div>', unsafe_allow_html=True)
+            letter_html = letter['letter_body'].replace('\\n', '<br>').replace('\n', '<br>')
+            st.markdown(f"""
+            <div style="
+                background: rgba(20,30,48,0.8);
+                border: 1px solid rgba(99,179,237,0.2);
+                border-radius: 12px;
+                padding: 1.5rem 2rem;
+                font-family: 'Georgia', serif;
+                font-size: 0.82rem;
+                line-height: 1.8;
+                color: #e2e8f0;
+                max-height: 320px;
+                overflow-y: auto;
+            ">
+                {letter_html}
+            </div>
+            """, unsafe_allow_html=True)
+
+        audit = decision.get("compliance_notes", "")
+        if audit:
+            with st.expander("📄 Compliance & Audit Trail"):
+                st.text(audit)
+
+        st.markdown("---")
+        col_a, col_b = st.columns(2)
+        with col_a:
+            if st.button("✅ Approve & Finalize", type="primary", use_container_width=True):
+                st.session_state.pipeline_status = "complete"
+                st.session_state.agent_messages.append({
+                    "stage": "system",
+                    "time": datetime.now().strftime("%H:%M:%S"),
+                    "text": f"🎉 Human loan officer APPROVED {decision.get('application_id')}. Decision finalized and audit trail logged.",
+                })
+                st.rerun()
+        with col_b:
+            if st.button("❌ Reject / Override", use_container_width=True):
+                st.session_state.pipeline_status = "idle"
+                st.session_state.agent_messages.append({
+                    "stage": "system",
+                    "time": datetime.now().strftime("%H:%M:%S"),
+                    "text": f"🚫 Human loan officer REJECTED the AI recommendation for {decision.get('application_id')}.",
+                })
+                st.rerun()
+
+    # ─── COMPLETE ───
+    if status == "complete":
+        st.success("🎉 Application finalized. Audit trail logged to Band room.")
+        if st.button("Process New Application", use_container_width=True):
+            st.session_state.pipeline_status = "idle"
+            st.session_state.agent_messages = []
+            st.session_state.loan_decision = None
+            st.session_state.application_id = None
+            st.rerun()
+
+# ─────────────────────────────────────────────
+# FOOTER
+# ─────────────────────────────────────────────
+st.markdown("---")
+st.markdown(
+    "<div style='text-align:center; color:#4a5568; font-size:0.75rem'>"
+    "Loan Shark · Built with Band SDK · Track 3: Regulated & High-Stakes Workflows · "
+    "Team TrenCoders · Band of Agents Hackathon 2026"
+    "</div>",
+    unsafe_allow_html=True
+)

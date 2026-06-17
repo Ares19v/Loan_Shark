@@ -1,0 +1,10 @@
+# Loan Shark — Streamlit Cloud deployment requirements
+# Generated from pyproject.toml
+
+band-sdk[langgraph]
+langchain-openai
+langgraph
+python-dotenv
+pyyaml
+streamlit
+requests

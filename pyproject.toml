@@ -1,0 +1,15 @@
+[project]
+name = "loan-shark"
+version = "0.1.0"
+description = "9-agent AI loan processing pipeline — Loan Shark by TrenCoders"
+requires-python = ">=3.11"
+
+dependencies = [
+    "band-sdk[langgraph]",
+    "langchain-openai",
+    "langgraph",
+    "python-dotenv",
+    "pyyaml",
+    "streamlit",
+    "requests",
+]
