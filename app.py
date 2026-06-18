@@ -13,6 +13,7 @@ import streamlit as st
 import os
 import time
 from datetime import datetime
+from typing import Any
 from dotenv import load_dotenv
 
 from band_client import (
@@ -416,6 +417,24 @@ def auto_poll_band() -> None:
     """Every 2s while the pipeline is running, pull new agent messages and auto-advance."""
     if st.session_state.pipeline_status != "running":
         return
+
+    if st.session_state.get("demo_safe_mode", True):
+        scenario = st.session_state.get("replay_scenario", "good")
+        step = st.session_state.get("replay_step", 0)
+        from demo_replay import DEMO_REPLAY_DATA
+        canned_msgs = DEMO_REPLAY_DATA.get(scenario, [])
+        if step < len(canned_msgs):
+            import sys
+            # Skip sleep when running in automated tests to avoid timeouts
+            is_testing = "streamlit.testing" in sys.modules or os.getenv("STREAMLIT_TESTING") == "true"
+            if not is_testing:
+                time.sleep(1.2)  # Simulate agent thinking/processing delay
+            msg = canned_msgs[step]
+            ingest_agent_message(msg)
+            st.session_state.replay_step = step + 1
+            st.rerun()
+        return
+
     if not st.session_state.chat_id or not is_configured():
         return
     try:
@@ -446,6 +465,502 @@ def auto_poll_band() -> None:
 
     if advanced:
         st.rerun()
+
+
+# ─────────────────────────────────────────────
+# ── AUDIT TRAIL & HUMAN GATE HELPERS ──
+# ─────────────────────────────────────────────
+
+import json
+from typing import Any
+
+def build_audit_json(messages: list[dict], decision: dict | None, application_id: str | None) -> str:
+    """Format messages and final decision status into a readable JSON string."""
+    audit_data = {
+        "application_id": application_id,
+        "exported_at": datetime.now().isoformat(),
+        "final_decision": decision,
+        "audit_trail": messages
+    }
+    return json.dumps(audit_data, indent=2)
+
+
+def build_audit_pdf(messages: list[dict], decision: dict | None, application_id: str | None) -> bytes:
+    """Generate a formatted PDF document containing the chronological audit trail."""
+    from io import BytesIO
+    try:
+        from reportlab.lib.pagesizes import letter
+        from reportlab.lib import colors
+        from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle
+        from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+    except ImportError:
+        raise ImportError("reportlab package is required to export PDF.")
+
+    buffer = BytesIO()
+    doc = SimpleDocTemplate(buffer, pagesize=letter,
+                            rightMargin=40, leftMargin=40,
+                            topMargin=40, bottomMargin=40)
+    
+    styles = getSampleStyleSheet()
+    
+    title_style = ParagraphStyle(
+        'DocTitle',
+        parent=styles['Heading1'],
+        fontName='Helvetica-Bold',
+        fontSize=20,
+        leading=24,
+        textColor=colors.HexColor('#1a365d'),
+        spaceAfter=15
+    )
+    
+    subtitle_style = ParagraphStyle(
+        'DocSubTitle',
+        parent=styles['Normal'],
+        fontName='Helvetica-Bold',
+        fontSize=11,
+        textColor=colors.HexColor('#4a5568'),
+        spaceAfter=15
+    )
+    
+    h2_style = ParagraphStyle(
+        'SectionHeading',
+        parent=styles['Heading2'],
+        fontName='Helvetica-Bold',
+        fontSize=12,
+        textColor=colors.HexColor('#2b6cb0'),
+        spaceBefore=12,
+        spaceAfter=8
+    )
+    
+    body_style = ParagraphStyle(
+        'BodyText',
+        parent=styles['Normal'],
+        fontName='Helvetica',
+        fontSize=9,
+        leading=13,
+        textColor=colors.HexColor('#2d3748')
+    )
+    
+    meta_style = ParagraphStyle(
+        'MetaText',
+        parent=styles['Normal'],
+        fontName='Helvetica-Oblique',
+        fontSize=8,
+        textColor=colors.HexColor('#718096')
+    )
+
+    bold_body_style = ParagraphStyle(
+        'BoldBodyText',
+        parent=body_style,
+        fontName='Helvetica-Bold'
+    )
+    
+    story = []
+    
+    # Header
+    story.append(Paragraph("LOAN SHARK FINANCIAL SERVICES", title_style))
+    story.append(Paragraph(f"Compliance Audit Trail Record — Application ID: {application_id or 'N/A'}", subtitle_style))
+    story.append(Spacer(1, 8))
+    
+    # Final Decision Callout if present
+    if decision:
+        story.append(Paragraph("Decision Summary", h2_style))
+        rec = decision.get("recommendation", "N/A")
+        risk = decision.get("risk_category", "N/A")
+        conf = decision.get("confidence", "N/A")
+        
+        dec_data = [
+            [Paragraph("Recommendation:", bold_body_style), Paragraph(str(rec), body_style)],
+            [Paragraph("Risk Category:", bold_body_style), Paragraph(str(risk), body_style)],
+            [Paragraph("Confidence Level:", bold_body_style), Paragraph(str(conf), body_style)],
+        ]
+        
+        if decision.get("approved_amount"):
+            dec_data.append([Paragraph("Approved Amount:", bold_body_style), Paragraph(f"Rs. {decision.get('approved_amount'):,}", body_style)])
+        if decision.get("approved_tenure_months"):
+            dec_data.append([Paragraph("Approved Tenure:", bold_body_style), Paragraph(f"{decision.get('approved_tenure_months')} months", body_style)])
+        if decision.get("exact_interest_rate") or decision.get("interest_rate"):
+            rate = decision.get("exact_interest_rate") or decision.get("interest_rate")
+            dec_data.append([Paragraph("Interest Rate:", bold_body_style), Paragraph(str(rate), body_style)])
+            
+        t_dec = Table(dec_data, colWidths=[140, 360])
+        t_dec.setStyle(TableStyle([
+            ('BACKGROUND', (0,0), (-1,-1), colors.HexColor('#f7fafc')),
+            ('BOX', (0,0), (-1,-1), 1, colors.HexColor('#e2e8f0')),
+            ('INNERGRID', (0,0), (-1,-1), 0.5, colors.HexColor('#edf2f7')),
+            ('TOPPADDING', (0,0), (-1,-1), 4),
+            ('BOTTOMPADDING', (0,0), (-1,-1), 4),
+            ('LEFTPADDING', (0,0), (-1,-1), 8),
+            ('RIGHTPADDING', (0,0), (-1,-1), 8),
+        ]))
+        story.append(t_dec)
+        story.append(Spacer(1, 10))
+        
+        notes = decision.get("compliance_notes")
+        if notes:
+            story.append(Paragraph("Compliance Notes:", bold_body_style))
+            story.append(Paragraph(str(notes), body_style))
+            story.append(Spacer(1, 8))
+            
+    # Audit Trail Chronology
+    story.append(Paragraph("Chronological Agent Processing Logs", h2_style))
+    
+    for idx, msg in enumerate(messages):
+        stage = msg.get("stage", "system")
+        sender = msg.get("sender_name", "Agent")
+        timestamp = msg.get("time", "")
+        text = msg.get("text", "")
+        
+        stage_label = {
+            "doc": "Intake -> Document Handoff",
+            "credit": "Document -> Credit Verification",
+            "fraud": "Credit -> Credit Analysis",
+            "risk": "Credit -> Fraud Assessment",
+            "compliance": "Fraud -> Risk Assessment",
+            "decision": "Risk -> Compliance Check",
+            "pricing": "Compliance -> Loan Decision",
+            "communication": "Decision -> Pricing Terms",
+            "human_gate": "Pricing -> Sanction Letter Draft",
+            "system": "System Log",
+            "thought": "Agent Internal Thought",
+            "error": "Pipeline Error",
+        }.get(stage, stage.capitalize())
+        
+        header_text = f"Step {idx+1}: {stage_label} ({sender}) — {timestamp}"
+        story.append(Paragraph(header_text, bold_body_style))
+        
+        json_data = extract_json_from_message(text)
+        if json_data:
+            fields_data = []
+            for k, v in json_data.items():
+                if k not in ["letter_body", "compliance_notes"] and v is not None:
+                    fields_data.append([Paragraph(str(k), meta_style), Paragraph(str(v), meta_style)])
+            if fields_data:
+                t_fields = Table(fields_data, colWidths=[140, 360])
+                t_fields.setStyle(TableStyle([
+                    ('BACKGROUND', (0,0), (-1,-1), colors.HexColor('#edf2f7')),
+                    ('BOX', (0,0), (-1,-1), 0.5, colors.HexColor('#e2e8f0')),
+                    ('INNERGRID', (0,0), (-1,-1), 0.25, colors.HexColor('#edf2f7')),
+                    ('TOPPADDING', (0,0), (-1,-1), 2),
+                    ('BOTTOMPADDING', (0,0), (-1,-1), 2),
+                    ('LEFTPADDING', (0,0), (-1,-1), 8),
+                ]))
+                story.append(t_fields)
+            else:
+                story.append(Paragraph("JSON payload carries forward cumulative variables.", meta_style))
+        else:
+            story.append(Paragraph(text, body_style))
+            
+        story.append(Spacer(1, 5))
+        
+    doc.build(story)
+    pdf_bytes = buffer.getvalue()
+    buffer.close()
+    return pdf_bytes
+
+
+def render_audit_panel(messages: list[dict], decision: dict | None, application_id: str | None) -> None:
+    """Renders the compliance audit trail expander and exports in the UI."""
+    if not messages:
+        return
+
+    st.markdown('<div class="section-header">📋 Compliance Audit Trail</div>', unsafe_allow_html=True)
+    with st.expander("📄 Open Regulatory Compliance & Audit Log", expanded=False):
+        
+        # Prominent Decision Basis Callout
+        if decision:
+            st.markdown("### ⚖️ Decision Basis Summary")
+            rec = decision.get("recommendation", "N/A")
+            risk = decision.get("risk_category", "N/A")
+            compliance_verdict = decision.get("compliance_verdict", "N/A")
+            
+            c1, c2, c3 = st.columns(3)
+            with c1:
+                st.metric("Recommendation", rec)
+            with c2:
+                st.metric("Risk Category", risk)
+            with c3:
+                st.metric("Compliance Verdict", compliance_verdict)
+                
+            # Call out compliance notes / violations prominently
+            notes = decision.get("compliance_notes")
+            if notes:
+                st.info(f"**Regulatory Note:** {notes}")
+                
+            denial = decision.get("denial_reasons")
+            if rec == "DENY" and denial:
+                st.error("**Denial Reasons & Violations:**\n" + "\n".join(f"• {r}" for r in denial))
+            
+            st.divider()
+
+        # Chronological Audit List
+        st.markdown("### 📜 Chronological Processing Log")
+        for idx, msg in enumerate(messages):
+            sender = msg.get("sender_name", "Agent")
+            stage = msg.get("stage", "system")
+            timestamp = msg.get("time", "")
+            text = msg.get("text", "")
+            
+            stage_title = {
+                "doc":           f"📥 {sender} → Document Handoff",
+                "credit":        f"📄 {sender} → Credit Verification",
+                "fraud":         f"💳 {sender} → Credit Analysis",
+                "risk":          f"🔍 {sender} → Fraud Assessment",
+                "compliance":    f"📊 {sender} → Risk Assessment",
+                "decision":      f"⚖️ {sender} → Compliance Check",
+                "pricing":       f"🎯 {sender} → Loan Decision",
+                "communication": f"💰 {sender} → Pricing Terms",
+                "human_gate":    f"✉️ {sender} → Sanction Letter",
+                "system":        "⚙️ System Action Log",
+                "thought":       f"🧠 {sender} (Thinking)",
+                "error":         f"⚠️ {sender} (Error)",
+            }.get(stage, f"{sender} (Action)")
+
+            st.markdown(f"**Step {idx+1}: {stage_title}** · *{timestamp}*")
+            
+            json_data = extract_json_from_message(text)
+            if json_data:
+                # Show key fields table
+                display_data = {k: v for k, v in json_data.items() if k not in ["letter_body", "compliance_notes"] and v is not None}
+                st.json(display_data, expanded=False)
+            else:
+                st.text(text)
+            st.markdown("---")
+            
+        # Download buttons
+        col_json, col_pdf = st.columns(2)
+        
+        # JSON export
+        json_data = build_audit_json(messages, decision, application_id)
+        with col_json:
+            st.download_button(
+                label="📥 Download JSON Record",
+                data=json_data,
+                file_name=f"audit_{application_id or 'loan'}.json",
+                mime="application/json",
+                use_container_width=True
+            )
+            
+        # PDF export
+        with col_pdf:
+            try:
+                pdf_data = build_audit_pdf(messages, decision, application_id)
+                st.download_button(
+                    label="📥 Download PDF Record",
+                    data=pdf_data,
+                    file_name=f"audit_{application_id or 'loan'}.pdf",
+                    mime="application/pdf",
+                    use_container_width=True
+                )
+            except Exception as e:
+                st.button(
+                    "📥 Download PDF (Install reportlab)",
+                    disabled=True,
+                    help=f"PDF export requires reportlab. Error: {e}",
+                    use_container_width=True
+                )
+
+
+def render_human_gate() -> None:
+    """Reads st.session_state.loan_letter / loan_decision; renders gate; logs officer action."""
+    letter = st.session_state.loan_letter
+    decision = st.session_state.loan_decision or {}
+    rec = letter.get("recommendation", decision.get("recommendation", ""))
+    
+    st.divider()
+    st.markdown('<div class="section-header">🔐 Human Loan Officer Review</div>', unsafe_allow_html=True)
+
+    # Decision summary
+    badge_map = {
+        "APPROVE": ("badge-approved", "✅ APPROVE"),
+        "DENY": ("badge-denied", "❌ DENY"),
+        "COUNTER_OFFER": ("badge-counter", "🔄 COUNTER OFFER"),
+    }
+    badge_cls, badge_text = badge_map.get(rec, ("badge-processing", rec))
+
+    st.markdown(f"""
+    <div class="decision-card">
+        <div style="margin-bottom:1rem">
+            <span class="{badge_cls}">{badge_text}</span>
+            <span style="color:#718096; font-size:0.8rem; margin-left:1rem">
+                Application {decision.get('application_id', '')} · 
+                Risk: {decision.get('risk_category', '')} · 
+                Confidence: {decision.get('confidence', '')}
+            </span>
+        </div>
+    </div>
+    """, unsafe_allow_html=True)
+
+    # Allow adjustments on Counter Offer
+    is_counter_offer = (rec == "COUNTER_OFFER")
+    final_amount = decision.get("approved_amount") or letter.get("approved_amount", 0.0)
+    final_tenure = decision.get("approved_tenure_months") or letter.get("approved_tenure_months", 0)
+
+    if rec in ("APPROVE", "COUNTER_OFFER") and decision:
+        if is_counter_offer:
+            st.markdown("#### 🛠️ Adjust Counter-Offer Terms")
+            col_adj_1, col_adj_2 = st.columns(2)
+            with col_adj_1:
+                final_amount = st.number_input(
+                    "Approved Amount (INR)",
+                    min_value=10000.0,
+                    max_value=float(decision.get("loan_amount_requested") or 10000000.0),
+                    value=float(final_amount),
+                    step=10000.0,
+                    key="adj_amount"
+                )
+            with col_adj_2:
+                final_tenure = st.number_input(
+                    "Approved Tenure (months)",
+                    min_value=6,
+                    max_value=360,
+                    value=int(final_tenure),
+                    step=6,
+                    key="adj_tenure"
+                )
+            # Recalculate EMI roughly for display
+            rate_str = decision.get("exact_interest_rate") or "12%"
+            try:
+                rate_val = float(rate_str.replace("%", "").split()[0]) / 100.0
+            except Exception:
+                rate_val = 0.12
+            monthly_rate = rate_val / 12.0
+            n = final_tenure
+            if monthly_rate > 0 and n > 0:
+                final_emi = final_amount * (monthly_rate * (1 + monthly_rate)**n) / ((1 + monthly_rate)**n - 1)
+            else:
+                final_emi = 0.0
+        else:
+            final_emi = decision.get("final_emi") or decision.get("estimated_emi", 0.0)
+
+        # Show metrics
+        m1, m2, m3 = st.columns(3)
+        with m1:
+            st.metric("Loan Amount", format_currency(final_amount))
+        with m2:
+            st.metric("Tenure", f"{final_tenure} months")
+        with m3:
+            st.metric("Estimated EMI", format_currency(final_emi) + "/mo")
+
+        co_notes = decision.get("counter_offer_notes") or letter.get("counter_offer_notes")
+        if co_notes and not is_counter_offer:
+            st.info(f"**Counter Offer Notes:** {co_notes}")
+
+    denial = decision.get("denial_reasons") or letter.get("denial_reasons", [])
+    if rec == "DENY" and denial:
+        st.error("**Denial Reasons:**\n" + "\n".join(f"• {r}" for r in denial))
+
+    # Formal Letter Preview
+    if letter.get("letter_body"):
+        st.divider()
+        st.markdown('<div class="section-header">📝 Formal Letter Preview</div>', unsafe_allow_html=True)
+        letter_body = letter['letter_body']
+        if is_counter_offer:
+            letter_body = letter_body.replace(f"Rs {decision.get('approved_amount', 0):,}", f"Rs {final_amount:,}")
+            letter_body = letter_body.replace(f"{decision.get('approved_tenure_months', 0)} Months", f"{final_tenure} Months")
+            
+        letter_html = letter_body.replace('\\n', '<br>').replace('\n', '<br>')
+        st.markdown(f"""
+        <div style="
+            background: rgba(20,30,48,0.8);
+            border: 1px solid rgba(99,179,237,0.2);
+            border-radius: 12px;
+            padding: 1.5rem 2rem;
+            font-family: 'Georgia', serif;
+            font-size: 0.82rem;
+            line-height: 1.8;
+            color: #e2e8f0;
+            max-height: 250px;
+            overflow-y: auto;
+        ">
+            {letter_html}
+        </div>
+        """, unsafe_allow_html=True)
+
+    # Compliance Notes Summary
+    audit = decision.get("compliance_notes", "")
+    if audit:
+        with st.expander("📄 Compliance Notes Summary"):
+            st.text(audit)
+
+    st.divider()
+    st.markdown("#### 👤 Loan Officer Sign-off")
+    
+    # Name input
+    officer_name = st.text_input("Officer Name", value=st.session_state.get("officer_name", ""), placeholder="e.g. Navnit Nair", key="officer_name_input")
+    st.session_state.officer_name = officer_name
+
+    # Compliance Checklist
+    st.markdown("**Compliance Checklist:**")
+    chk1 = st.checkbox("KYC verified and applicant identity confirmed", key="chk_kyc")
+    chk2 = st.checkbox("Interest rate and EMI affordability reviewed", key="chk_afford")
+    chk3 = st.checkbox("Lending terms compliant with RBI regulatory guidelines", key="chk_rbi")
+    
+    all_checked = chk1 and chk2 and chk3
+    officer_filled = bool(officer_name.strip())
+
+    col_a, col_b = st.columns(2)
+    
+    show_override = st.session_state.get("show_override_reason_input", False)
+    
+    if not show_override:
+        with col_a:
+            st.button(
+                "✅ Approve & Finalize",
+                type="primary",
+                use_container_width=True,
+                disabled=not (all_checked and officer_filled),
+                key="btn_approve_finalize"
+            )
+            if st.session_state.get("btn_approve_finalize"):
+                st.session_state.pipeline_status = "complete"
+                time_str = datetime.now().strftime("%H:%M:%S")
+                st.session_state.agent_messages.append({
+                    "stage": "system",
+                    "time": time_str,
+                    "sender_name": "System",
+                    "text": f"✅ APPROVED by {officer_name} at {time_str} — amount {format_currency(final_amount)}, tenure {final_tenure} mo. Final terms logged.",
+                })
+                st.rerun()
+        with col_b:
+            st.button(
+                "❌ Reject / Override",
+                use_container_width=True,
+                disabled=not officer_filled,
+                key="btn_reject_override"
+            )
+            if st.session_state.get("btn_reject_override"):
+                st.session_state.show_override_reason_input = True
+                st.rerun()
+    else:
+        st.warning("⚠️ Enter a reason for overriding/rejecting the recommendation:")
+        reason = st.text_area("Override/Rejection Reason", key="override_reason_text_input")
+        
+        col_c, col_d = st.columns(2)
+        with col_c:
+            st.button(
+                "Confirm Override / Rejection",
+                type="primary",
+                use_container_width=True,
+                disabled=(reason.strip() == ""),
+                key="btn_confirm_override"
+            )
+            if st.session_state.get("btn_confirm_override"):
+                st.session_state.pipeline_status = "complete"
+                st.session_state.show_override_reason_input = False
+                time_str = datetime.now().strftime("%H:%M:%S")
+                st.session_state.agent_messages.append({
+                    "stage": "system",
+                    "time": time_str,
+                    "sender_name": "System",
+                    "text": f"🚫 OVERRIDDEN by {officer_name} at {time_str} — reason: \"{reason}\". Decision logged.",
+                })
+                st.rerun()
+        with col_d:
+            if st.button("Cancel Override", use_container_width=True):
+                st.session_state.show_override_reason_input = False
+                st.rerun()
+
 
 
 # ─────────────────────────────────────────────
@@ -579,6 +1094,11 @@ with left_col:
             placeholder="Leave blank if set in .env (BAND_HUMAN_API_KEY)",
             help="Your personal Band API key — the UI uses it to post and poll messages.",
         )
+        demo_safe_mode = st.checkbox(
+            "🛡️ Demo-safe Mode (Simulated Replay)",
+            value=st.session_state.get("demo_safe_mode", True),
+            help="Bypass live Band SDK/API calls and run a realistic, canned sequence of agent steps on a timer. Safe for offline or quota issues."
+        )
 
         submitted = st.form_submit_button(
             "🚀 Submit Application",
@@ -587,14 +1107,15 @@ with left_col:
         )
 
     if submitted:
+        st.session_state.demo_safe_mode = demo_safe_mode
         if band_human_key.strip():
             os.environ["BAND_HUMAN_API_KEY"] = band_human_key.strip()
         if band_chat_id.strip():
             os.environ["BAND_CHAT_ID"] = band_chat_id.strip()
 
-        if not applicant_name or not band_chat_id.strip() or not intake_handle.strip():
+        if not demo_safe_mode and (not applicant_name or not band_chat_id.strip() or not intake_handle.strip()):
             st.error("Please fill in applicant name, Band Chat ID, and Intake Agent Handle.")
-        elif not is_configured():
+        elif not demo_safe_mode and not is_configured():
             st.error(
                 f"Band not configured — missing: {', '.join(missing_config())}. "
                 "Set BAND_HUMAN_API_KEY in .env or paste it in the field above."
@@ -627,33 +1148,43 @@ with left_col:
             st.session_state.agent_messages = []
             st.session_state.loan_decision = None
             st.session_state.loan_letter = None
-            st.session_state.poll_since = now_iso()
             st.session_state.seen_message_ids = set()
+            st.session_state.show_override_reason_input = False
 
-            st.session_state.agent_messages.append({
-                "stage": "system",
-                "time": datetime.now().strftime("%H:%M:%S"),
-                "text": f"✅ Application {app_id} submitted. Triggering 9-agent pipeline via Band...",
-            })
-
-            # Post the kickoff to the Band room via the Human API (must @mention Intake).
-            content = f"{handle} {message}"
-            try:
-                post_message(chat_id, content, mention_handle=handle)
+            if demo_safe_mode:
+                st.session_state.replay_step = 0
+                st.session_state.replay_scenario = st.session_state.active_demo or "good"
                 st.session_state.agent_messages.append({
                     "stage": "system",
                     "time": datetime.now().strftime("%H:%M:%S"),
-                    "text": "📡 Posted to Band. Agents are processing — the pipeline will advance automatically...",
+                    "text": f"✅ Simulated Application {app_id} submitted. Running in Demo-safe Mode...",
                 })
-                st.success("Submitted to Band! Watch the pipeline auto-advance on the right →")
-            except BandClientError as exc:
-                st.session_state.pipeline_status = "idle"
+            else:
+                st.session_state.poll_since = now_iso()
                 st.session_state.agent_messages.append({
-                    "stage": "error",
+                    "stage": "system",
                     "time": datetime.now().strftime("%H:%M:%S"),
-                    "text": f"⚠️ Could not post to Band: {exc}",
+                    "text": f"✅ Application {app_id} submitted. Triggering 9-agent pipeline via Band...",
                 })
-                st.error(f"Could not post to Band room: {exc}")
+
+                # Post the kickoff to the Band room via the Human API (must @mention Intake).
+                content = f"{handle} {message}"
+                try:
+                    post_message(chat_id, content, mention_handle=handle)
+                    st.session_state.agent_messages.append({
+                        "stage": "system",
+                        "time": datetime.now().strftime("%H:%M:%S"),
+                        "text": "📡 Posted to Band. Agents are processing — the pipeline will advance automatically...",
+                    })
+                    st.success("Submitted to Band! Watch the pipeline auto-advance on the right →")
+                except BandClientError as exc:
+                    st.session_state.pipeline_status = "idle"
+                    st.session_state.agent_messages.append({
+                        "stage": "error",
+                        "time": datetime.now().strftime("%H:%M:%S"),
+                        "text": f"⚠️ Could not post to Band: {exc}",
+                    })
+                    st.error(f"Could not post to Band room: {exc}")
 
             st.rerun()
 
@@ -777,110 +1308,19 @@ with right_col:
 
     # ─── HUMAN GATE ───
     if status == "awaiting_approval" and st.session_state.loan_letter:
-        letter  = st.session_state.loan_letter
-        decision = st.session_state.loan_decision or {}
-        rec = letter.get("recommendation", decision.get("recommendation", ""))
-        currency_sym = "₹"
+        render_human_gate()
 
-        st.divider()
-        st.markdown('<div class="section-header">🔐 Human Loan Officer Review</div>', unsafe_allow_html=True)
-
-        # Decision summary
-        badge_map = {
-            "APPROVE": ("badge-approved", "✅ APPROVE"),
-            "DENY": ("badge-denied", "❌ DENY"),
-            "COUNTER_OFFER": ("badge-counter", "🔄 COUNTER OFFER"),
-        }
-        badge_cls, badge_text = badge_map.get(rec, ("badge-processing", rec))
-
-        st.markdown(f"""
-        <div class="decision-card">
-            <div style="margin-bottom:1rem">
-                <span class="{badge_cls}">{badge_text}</span>
-                <span style="color:#718096; font-size:0.8rem; margin-left:1rem">
-                    Application {decision.get('application_id', '')} · 
-                    Risk: {decision.get('risk_category', '')} · 
-                    Confidence: {decision.get('confidence', '')}
-                </span>
-            </div>
-        </div>
-        """, unsafe_allow_html=True)
-
-        if rec in ("APPROVE", "COUNTER_OFFER") and decision:
-            m1, m2, m3 = st.columns(3)
-            with m1:
-                amt = decision.get("approved_amount") or letter.get("approved_amount", 0)
-                st.metric("Loan Amount", f"{currency_sym}{amt:,.0f}" if amt else "N/A")
-            with m2:
-                tenure = decision.get("approved_tenure_months") or letter.get("approved_tenure_months", 0)
-                st.metric("Tenure", f"{tenure} months" if tenure else "N/A")
-            with m3:
-                emi = decision.get("final_emi") or decision.get("estimated_emi", 0)
-                st.metric("EMI", f"{currency_sym}{emi:,.0f}/mo" if emi else "N/A")
-
-            co_notes = decision.get("counter_offer_notes") or letter.get("counter_offer_notes")
-            if co_notes:
-                st.info(f"**Counter Offer Terms:** {co_notes}")
-
-        denial = decision.get("denial_reasons") or letter.get("denial_reasons", [])
-        if rec == "DENY" and denial:
-            st.error("**Denial Reasons:**\n" + "\n".join(f"• {r}" for r in denial))
-
-        # ─── FORMAL LETTER PREVIEW ───
-        if letter.get("letter_body"):
-            st.divider()
-            st.markdown('<div class="section-header">📝 Formal Letter Preview</div>', unsafe_allow_html=True)
-            letter_html = letter['letter_body'].replace('\\n', '<br>').replace('\n', '<br>')
-            st.markdown(f"""
-            <div style="
-                background: rgba(20,30,48,0.8);
-                border: 1px solid rgba(99,179,237,0.2);
-                border-radius: 12px;
-                padding: 1.5rem 2rem;
-                font-family: 'Georgia', serif;
-                font-size: 0.82rem;
-                line-height: 1.8;
-                color: #e2e8f0;
-                max-height: 320px;
-                overflow-y: auto;
-            ">
-                {letter_html}
-            </div>
-            """, unsafe_allow_html=True)
-
-        audit = decision.get("compliance_notes", "")
-        if audit:
-            with st.expander("📄 Compliance & Audit Trail"):
-                st.text(audit)
-
-        st.markdown("---")
-        col_a, col_b = st.columns(2)
-        with col_a:
-            if st.button("✅ Approve & Finalize", type="primary", use_container_width=True):
-                st.session_state.pipeline_status = "complete"
-                st.session_state.agent_messages.append({
-                    "stage": "system",
-                    "time": datetime.now().strftime("%H:%M:%S"),
-                    "text": f"🎉 Human loan officer APPROVED {decision.get('application_id')}. Decision finalized and audit trail logged.",
-                })
-                st.rerun()
-        with col_b:
-            if st.button("❌ Reject / Override", use_container_width=True):
-                st.session_state.pipeline_status = "idle"
-                st.session_state.agent_messages.append({
-                    "stage": "system",
-                    "time": datetime.now().strftime("%H:%M:%S"),
-                    "text": f"🚫 Human loan officer REJECTED the AI recommendation for {decision.get('application_id')}.",
-                })
-                st.rerun()
+    # Render Audit Trail Panel
+    render_audit_panel(st.session_state.agent_messages, st.session_state.loan_decision, st.session_state.application_id)
 
     # ─── COMPLETE ───
     if status == "complete":
-        st.success("🎉 Application finalized. Audit trail logged to Band room.")
+        st.success("🎉 Application finalized. Audit trail logged.")
         if st.button("Process New Application", use_container_width=True):
             st.session_state.pipeline_status = "idle"
             st.session_state.agent_messages = []
             st.session_state.loan_decision = None
+            st.session_state.loan_letter = None
             st.session_state.application_id = None
             st.rerun()
 

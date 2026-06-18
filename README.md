@@ -153,7 +153,7 @@ Checks whether the applicant's claimed documents are sufficient and internally c
 **Trigger:** `DOC_VERIFICATION:`  
 **Output:** `CREDIT_ANALYSIS:` → `@FraudAgent`
 
-Interprets the raw credit score into an actionable credit profile. Maps the score to a credit grade (A+ to D, with U for unscored / first-time borrowers), assesses credit utilization health, identifies risk bands, and determines the maximum loan-to-income ratio permissible for this credit profile. Also flags first-time borrowers (no credit history) with appropriate risk annotations.
+Interprets the raw credit score into an actionable credit profile. Maps the score to a credit grade (A+, A, B+, B, C, D, U), assesses credit utilization health, identifies risk bands, and determines the maximum loan-to-income ratio permissible for this credit profile. Also flags first-time borrowers (no credit history) with appropriate risk annotations.
 
 ---
 
