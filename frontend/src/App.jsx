@@ -5,8 +5,9 @@ import Pipeline from './pages/Pipeline';
 import Overview from './pages/Overview';
 import AuditLogs from './pages/AuditLogs';
 import Settings from './pages/Settings';
+import Login from './pages/Login';
 
-const Sidebar = () => {
+const Sidebar = ({ user, onLogout }) => {
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -36,14 +37,14 @@ const Sidebar = () => {
         ))}
       </div>
       <div className="sidebar-bottom">
-        <div className="sidebar-logout">
+        <div className="sidebar-logout" onClick={onLogout}>
           <span>→</span>
           <span>Logout</span>
         </div>
         <div className="sidebar-profile">
-          <div className="profile-avatar">L</div>
+          <div className="profile-avatar">{user?.username?.[0]?.toUpperCase()}</div>
           <div>
-            <div className="profile-name">Loan Officer</div>
+            <div className="profile-name">{user?.username}</div>
             <div className="profile-sub">View profile</div>
           </div>
         </div>
@@ -84,10 +85,10 @@ const Topbar = () => {
   );
 };
 
-const AppLayout = () => {
+const AppLayout = ({ user, onLogout }) => {
   return (
     <div className="layout">
-      <Sidebar />
+      <Sidebar user={user} onLogout={onLogout} />
       <div className="main">
         <div className="main-scroll">
           <Topbar />
@@ -106,9 +107,15 @@ const AppLayout = () => {
 };
 
 export default function App() {
+  const [user, setUser] = useState({ username: 'User1' });
+
   return (
     <BrowserRouter>
-      <AppLayout />
+      {user ? (
+        <AppLayout user={user} onLogout={() => setUser(null)} />
+      ) : (
+        <Login onLogin={setUser} />
+      )}
     </BrowserRouter>
   );
 }
