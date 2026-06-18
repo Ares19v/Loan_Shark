@@ -36,195 +36,352 @@ st.set_page_config(
     page_title="Loan Shark — AI Loan Processing",
     page_icon="🦈",
     layout="wide",
-    initial_sidebar_state="collapsed",
+    initial_sidebar_state="expanded",
 )
 
 # ─────────────────────────────────────────────
-# CUSTOM CSS
+# GLOBAL CSS — matches FINEbank layout exactly
 # ─────────────────────────────────────────────
 
 st.markdown("""
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
 
+/* ── Reset & Base ── */
 html, body, [class*="css"] {
-    font-family: 'Inter', sans-serif;
+    font-family: 'Inter', sans-serif !important;
 }
 
-.main {
-    background: #0a0a0f;
-    color: #e8e8f0;
+/* ── Main background: light gray ── */
+.stApp, [data-testid="stAppViewContainer"] {
+    background: #f0f2f5 !important;
+}
+[data-testid="stAppViewContainer"] > section:nth-child(2) {
+    background: #f0f2f5 !important;
+}
+[data-testid="block-container"] {
+    background: #f0f2f5 !important;
+    padding: 2rem 2.5rem !important;
+    max-width: 100% !important;
 }
 
-.stApp {
-    background: linear-gradient(135deg, #0a0a0f 0%, #0d1117 50%, #0a0f1a 100%);
+/* ── Sidebar: dark ── */
+[data-testid="stSidebar"] {
+    background: #1a1d27 !important;
+    min-width: 240px !important;
+    max-width: 240px !important;
+    border-right: none !important;
+}
+[data-testid="stSidebar"] > div {
+    padding-top: 0 !important;
 }
 
-/* Header */
-.lp-header {
-    background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
-    border: 1px solid rgba(99, 179, 237, 0.2);
-    border-radius: 16px;
-    padding: 2rem 2.5rem;
-    margin-bottom: 2rem;
-    display: flex;
-    align-items: center;
-    gap: 1.5rem;
+/* Hide streamlit default sidebar header */
+[data-testid="stSidebarNav"] { display: none !important; }
+button[data-testid="collapsedControl"] { display: none !important; }
+
+/* ── Sidebar Radio (nav pills) ── */
+/* Hide the radio circles — target every Streamlit version */
+div[data-testid="stSidebar"] [role="radiogroup"] label > div:first-child { display: none !important; }
+div[data-testid="stSidebar"] [data-testid="stRadio"] label > div:first-child { display: none !important; }
+div[data-testid="stSidebar"] input[type="radio"] { display: none !important; }
+div[data-testid="stSidebar"] [role="radio"] { display: none !important; }
+div[data-testid="stSidebar"] .st-emotion-cache-1inwz65 { display: none !important; }
+div[data-testid="stSidebar"] span[data-baseweb="radio"] > div:first-child { display: none !important; }
+div[data-testid="stSidebar"] [role="radiogroup"] {
+    gap: 0 !important;
 }
-
-.lp-title {
-    font-size: 2rem;
-    font-weight: 700;
-    background: linear-gradient(135deg, #63b3ed, #90cdf4, #bee3f8);
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
-    margin: 0;
+div[data-testid="stSidebar"] [role="radiogroup"] label {
+    background: transparent !important;
+    border: none !important;
+    border-radius: 8px !important;
+    padding: 0.7rem 1.2rem !important;
+    margin: 0.15rem 0.8rem !important;
+    cursor: pointer !important;
+    transition: all 0.18s ease !important;
+    width: calc(100% - 1.6rem) !important;
 }
-
-.lp-subtitle {
-    color: #a0aec0;
-    font-size: 0.9rem;
-    margin: 0;
-    margin-top: 0.25rem;
+div[data-testid="stSidebar"] [role="radiogroup"] label:hover {
+    background: rgba(255,255,255,0.06) !important;
 }
-
-/* Status badges */
-.badge-processing {
-    background: rgba(246, 173, 85, 0.15);
-    border: 1px solid rgba(246, 173, 85, 0.4);
-    color: #f6ad55;
-    padding: 0.3rem 0.8rem;
-    border-radius: 20px;
-    font-size: 0.75rem;
-    font-weight: 600;
-    display: inline-block;
+div[data-testid="stSidebar"] [role="radiogroup"] label[data-checked="true"] {
+    background: #1dbfa0 !important;
+    border-radius: 8px !important;
 }
-
-.badge-approved {
-    background: rgba(72, 187, 120, 0.15);
-    border: 1px solid rgba(72, 187, 120, 0.4);
-    color: #48bb78;
-    padding: 0.3rem 0.8rem;
-    border-radius: 20px;
-    font-size: 0.75rem;
-    font-weight: 600;
-    display: inline-block;
-}
-
-.badge-denied {
-    background: rgba(245, 101, 101, 0.15);
-    border: 1px solid rgba(245, 101, 101, 0.4);
-    color: #fc8181;
-    padding: 0.3rem 0.8rem;
-    border-radius: 20px;
-    font-size: 0.75rem;
-    font-weight: 600;
-    display: inline-block;
-}
-
-.badge-counter {
-    background: rgba(159, 122, 234, 0.15);
-    border: 1px solid rgba(159, 122, 234, 0.4);
-    color: #b794f4;
-    padding: 0.3rem 0.8rem;
-    border-radius: 20px;
-    font-size: 0.75rem;
-    font-weight: 600;
-    display: inline-block;
-}
-
-/* Agent pipeline cards */
-.pipeline-card {
-    background: rgba(26, 32, 44, 0.8);
-    border: 1px solid rgba(99, 179, 237, 0.15);
-    border-radius: 12px;
-    padding: 1.25rem;
-    margin-bottom: 0.75rem;
-    transition: all 0.3s ease;
-}
-
-.pipeline-card.active {
-    border-color: rgba(99, 179, 237, 0.5);
-    background: rgba(15, 52, 96, 0.3);
-    box-shadow: 0 0 20px rgba(99, 179, 237, 0.1);
-}
-
-.pipeline-card.done {
-    border-color: rgba(72, 187, 120, 0.4);
-    background: rgba(20, 40, 30, 0.4);
-}
-
-/* Agent message feed */
-.agent-message {
-    background: rgba(26, 32, 44, 0.9);
-    border-left: 3px solid #63b3ed;
-    border-radius: 0 8px 8px 0;
-    padding: 0.75rem 1rem;
-    margin-bottom: 0.5rem;
-    font-size: 0.85rem;
-    color: #e2e8f0;
-}
-
-.agent-message.intake { border-left-color: #63b3ed; }
-.agent-message.risk   { border-left-color: #f6ad55; }
-.agent-message.decision { border-left-color: #9f7aea; }
-.agent-message.system { border-left-color: #68d391; }
-.agent-message.thought { border-left-color: #718096; font-style: italic; opacity: 0.85; }
-.agent-message.error { border-left-color: #fc8181; background: rgba(252, 129, 129, 0.05); }
-
-/* Decision card */
-.decision-card {
-    background: linear-gradient(135deg, rgba(15, 52, 96, 0.6), rgba(26, 26, 46, 0.8));
-    border: 1px solid rgba(99, 179, 237, 0.3);
-    border-radius: 16px;
-    padding: 2rem;
-    margin-top: 1.5rem;
-}
-
-.decision-amount {
-    font-size: 2.5rem;
-    font-weight: 700;
-    color: #48bb78;
-}
-
-/* Form styling */
-.stSelectbox label, .stNumberInput label, .stTextInput label, .stSlider label {
-    color: #a0aec0 !important;
-    font-size: 0.85rem !important;
+div[data-testid="stSidebar"] [role="radiogroup"] label p,
+div[data-testid="stSidebar"] [role="radiogroup"] label span {
+    color: #9ca3af !important;
+    font-size: 0.9rem !important;
     font-weight: 500 !important;
 }
+div[data-testid="stSidebar"] [role="radiogroup"] label[data-checked="true"] p,
+div[data-testid="stSidebar"] [role="radiogroup"] label[data-checked="true"] span {
+    color: #ffffff !important;
+    font-weight: 600 !important;
+}
 
-/* Section headers */
-.section-header {
-    font-size: 0.7rem;
+/* ── White card ── */
+.ls-card {
+    background: #ffffff;
+    border-radius: 12px;
+    padding: 1.8rem 2rem;
+    margin-bottom: 1.5rem;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.06);
+}
+.ls-card-title {
+    font-size: 1rem;
+    font-weight: 600;
+    color: #6b7280;
+    margin: 0 0 1.4rem 0;
+    letter-spacing: 0.01em;
+}
+
+/* ── Detail grid (2 or 3 col) ── */
+.ls-detail-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 1.8rem;
+    margin-bottom: 1.4rem;
+}
+.ls-detail-label {
+    font-size: 0.78rem;
+    color: #9ca3af;
+    font-weight: 500;
+    margin: 0 0 0.25rem 0;
+    text-transform: capitalize;
+}
+.ls-detail-value {
+    font-size: 1rem;
     font-weight: 700;
-    letter-spacing: 0.15em;
-    text-transform: uppercase;
-    color: #63b3ed;
-    margin-bottom: 1rem;
+    color: #111827;
+    margin: 0;
+}
+
+/* ── Action row ── */
+.ls-action-row {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
     margin-top: 0.5rem;
 }
-
-/* Human gate */
-.human-gate {
-    background: linear-gradient(135deg, rgba(49, 130, 206, 0.1), rgba(66, 153, 225, 0.05));
-    border: 2px solid rgba(99, 179, 237, 0.4);
-    border-radius: 16px;
-    padding: 2rem;
-    text-align: center;
-}
-
-.stButton > button {
-    border-radius: 8px;
+.ls-btn-teal {
+    background: #1dbfa0;
+    color: #ffffff;
+    padding: 0.55rem 1.4rem;
+    border-radius: 7px;
     font-weight: 600;
-    font-size: 0.9rem;
-    padding: 0.6rem 2rem;
+    font-size: 0.88rem;
+    cursor: pointer;
+    display: inline-block;
+    border: none;
+    transition: background 0.15s;
+}
+.ls-btn-teal:hover { background: #18a88d; }
+.ls-btn-ghost {
+    color: #6b7280;
+    font-size: 0.88rem;
+    font-weight: 500;
+    cursor: pointer;
+    text-decoration: none;
+    background: none;
+    border: none;
 }
 
-div[data-testid="stMetricValue"] {
-    color: #90cdf4 !important;
-    font-size: 1.4rem !important;
+/* ── Table ── */
+.ls-table-wrap { overflow-x: auto; }
+.ls-table {
+    width: 100%;
+    border-collapse: collapse;
 }
+.ls-table th {
+    text-align: left;
+    font-size: 0.83rem;
+    font-weight: 700;
+    color: #111827;
+    padding: 0 1rem 1rem 0;
+    border-bottom: 1px solid #e5e7eb;
+}
+.ls-table td {
+    font-size: 0.88rem;
+    color: #6b7280;
+    padding: 1rem 1rem 1rem 0;
+    border-bottom: 1px solid #f3f4f6;
+    vertical-align: middle;
+}
+.ls-table td.bold { font-weight: 700; color: #111827; }
+.ls-table td.green { color: #10b981; font-weight: 500; }
+.ls-table td.red { color: #ef4444; font-weight: 500; }
+.ls-table td.orange { color: #f59e0b; font-weight: 500; }
+.ls-table td.blue { color: #3b82f6; font-weight: 500; }
+
+/* Badge for pipeline stage */
+.ls-badge {
+    display: inline-block;
+    padding: 0.2rem 0.65rem;
+    border-radius: 20px;
+    font-size: 0.75rem;
+    font-weight: 600;
+}
+.ls-badge-green { background: #d1fae5; color: #065f46; }
+.ls-badge-orange { background: #fef3c7; color: #92400e; }
+.ls-badge-red { background: #fee2e2; color: #991b1b; }
+.ls-badge-blue { background: #dbeafe; color: #1e40af; }
+.ls-badge-gray { background: #f3f4f6; color: #374151; }
+
+/* ── Top bar ── */
+.ls-topbar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1.8rem;
+}
+.ls-topbar-date {
+    font-size: 0.88rem;
+    color: #9ca3af;
+    font-weight: 500;
+}
+.ls-topbar-right {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+}
+.ls-search {
+    background: #ffffff;
+    border: none;
+    border-radius: 25px;
+    padding: 0.5rem 1.2rem;
+    font-size: 0.85rem;
+    color: #9ca3af;
+    width: 200px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+    outline: none;
+}
+
+/* ── Load More button ── */
+.ls-load-more-wrap { text-align: center; margin-top: 1.5rem; }
+.ls-load-more {
+    background: #1dbfa0;
+    color: #fff;
+    border: none;
+    border-radius: 7px;
+    padding: 0.6rem 2.5rem;
+    font-size: 0.9rem;
+    font-weight: 600;
+    cursor: pointer;
+}
+
+/* ── Streamlit form styling override ── */
+div[data-testid="stForm"] {
+    background: #ffffff;
+    border-radius: 12px;
+    padding: 1.8rem 2rem;
+    border: none !important;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.06);
+}
+.stTextInput > label, .stNumberInput > label,
+.stSelectbox > label, .stSlider > label,
+.stTextArea > label, .stCheckbox > label {
+    color: #374151 !important;
+    font-size: 0.83rem !important;
+    font-weight: 500 !important;
+}
+.stTextInput input, .stNumberInput input, .stTextArea textarea {
+    background: #f9fafb !important;
+    border: 1px solid #e5e7eb !important;
+    border-radius: 7px !important;
+    color: #111827 !important;
+    font-size: 0.9rem !important;
+}
+.stTextInput input:focus, .stNumberInput input:focus, .stTextArea textarea:focus {
+    border-color: #1dbfa0 !important;
+    box-shadow: 0 0 0 2px rgba(29,191,160,0.15) !important;
+}
+.stSelectbox > div > div {
+    background: #f9fafb !important;
+    border: 1px solid #e5e7eb !important;
+    border-radius: 7px !important;
+    color: #111827 !important;
+}
+.stFormSubmitButton > button, .stButton > button[kind="primary"] {
+    background: #1dbfa0 !important;
+    color: #ffffff !important;
+    border: none !important;
+    border-radius: 8px !important;
+    font-weight: 600 !important;
+    font-size: 0.92rem !important;
+    padding: 0.65rem 2rem !important;
+    transition: background 0.15s !important;
+}
+.stFormSubmitButton > button:hover { background: #18a88d !important; }
+.stButton > button {
+    border-radius: 8px !important;
+    font-weight: 600 !important;
+    font-size: 0.88rem !important;
+    transition: all 0.15s !important;
+}
+
+/* ── Streamlit Slider ── */
+.stSlider [data-baseweb="slider"] [data-testid="stThumbValue"] { color: #1dbfa0 !important; }
+.stSlider [data-baseweb="slider"] [role="slider"] { background: #1dbfa0 !important; border-color: #1dbfa0 !important; }
+
+/* ── Toggle ── */
+div[data-testid="stSidebar"] .stToggle label { color: #9ca3af !important; font-size: 0.82rem !important; }
+
+/* ── Hide default Streamlit elements ── */
+#MainMenu, footer, header { visibility: hidden; }
+[data-testid="stHeader"] { display: none; }
+div[data-testid="stDecoration"] { display: none; }
+
+/* ── Agent message feed ── */
+.agent-message {
+    background: #f9fafb;
+    border-left: 3px solid #1dbfa0;
+    border-radius: 0 8px 8px 0;
+    padding: 0.7rem 1rem;
+    margin-bottom: 0.5rem;
+    font-size: 0.83rem;
+    color: #374151;
+}
+.agent-message.error { border-left-color: #ef4444; background: #fef2f2; }
+.agent-message.system { border-left-color: #6b7280; }
+.agent-message.thought { border-left-color: #9ca3af; font-style: italic; opacity: 0.85; }
+
+/* ── Decision / human gate ── */
+.decision-card {
+    background: #f0fdf4;
+    border: 1px solid #86efac;
+    border-radius: 10px;
+    padding: 1.4rem 1.6rem;
+    margin-bottom: 1rem;
+}
+.decision-card.deny { background: #fef2f2; border-color: #fca5a5; }
+.decision-card.counter { background: #fffbeb; border-color: #fcd34d; }
+
+/* ── Compliance expander ── */
+.streamlit-expanderHeader { color: #374151 !important; font-size: 0.88rem !important; }
+
+/* ── Section headers ── */
+.ls-section-label {
+    font-size: 0.7rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    color: #9ca3af;
+    margin: 0 0 0.8rem 0;
+}
+
+/* ── Divider ── */
+hr { border-color: #e5e7eb !important; margin: 1.2rem 0 !important; }
+
+/* ── Metrics ── */
+div[data-testid="stMetricValue"] { color: #111827 !important; font-size: 1.3rem !important; font-weight: 700 !important; }
+div[data-testid="stMetricLabel"] { color: #6b7280 !important; font-size: 0.78rem !important; }
+
+/* ── Info/Warning/Error boxes ── */
+div[data-testid="stAlert"] { border-radius: 8px !important; font-size: 0.88rem !important; }
+
+/* ── Expander ── */
+div[data-testid="stExpander"] { border: 1px solid #e5e7eb !important; border-radius: 8px !important; }
 </style>
 """, unsafe_allow_html=True)
 
@@ -255,6 +412,8 @@ if "seen_message_ids" not in st.session_state:
     st.session_state.seen_message_ids = set()
 if "active_demo" not in st.session_state:
     st.session_state.active_demo = None
+if "current_page" not in st.session_state:
+    st.session_state.current_page = "Applications"
 
 # ─────────────────────────────────────────────
 # DEMO SCENARIOS
@@ -322,7 +481,7 @@ def format_currency(amount, currency="INR"):
 
 
 def detect_message_stage(text):
-    if "NEW_LOAN_APPLICATION:" in text:   return "system"   # the UI's own kickoff message
+    if "NEW_LOAN_APPLICATION:" in text:   return "system"
     elif "LOAN_APPLICATION:" in text:     return "doc"
     elif "DOC_VERIFICATION:" in text:     return "credit"
     elif "CREDIT_ANALYSIS:" in text:      return "fraud"
@@ -386,19 +545,15 @@ def ingest_agent_message(msg_or_content: str | dict[str, Any]) -> bool:
     elif msg_type == "error":
         stage = "error"
 
-    # Skip UI kickoff and user chatter in the agent feed
     if stage == "system" and sender_type == "User":
         return False
 
     data = extract_json_from_message(content)
 
-    # Decision Agent posts LOAN_DECISION_READY (stage 'pricing') with the recommendation.
     if stage == "pricing" and data:
         st.session_state.loan_decision = data
-    # Pricing Agent posts PRICING_TERMS (stage 'communication') — merge final terms in.
     if stage == "communication" and data and st.session_state.loan_decision:
         st.session_state.loan_decision = {**st.session_state.loan_decision, **data}
-    # Communication Agent posts FORMAL_LETTER_READY -> open the Human Gate.
     if stage == "human_gate" and data:
         st.session_state.loan_letter = data
         st.session_state.pipeline_status = "awaiting_approval"
@@ -425,10 +580,9 @@ def auto_poll_band() -> None:
         canned_msgs = DEMO_REPLAY_DATA.get(scenario, [])
         if step < len(canned_msgs):
             import sys
-            # Skip sleep when running in automated tests to avoid timeouts
             is_testing = "streamlit.testing" in sys.modules or os.getenv("STREAMLIT_TESTING") == "true"
             if not is_testing:
-                time.sleep(1.2)  # Simulate agent thinking/processing delay
+                time.sleep(1.2)
             msg = canned_msgs[step]
             ingest_agent_message(msg)
             st.session_state.replay_step = step + 1
@@ -440,9 +594,8 @@ def auto_poll_band() -> None:
     try:
         messages = poll_messages(st.session_state.chat_id, st.session_state.poll_since)
     except BandClientError:
-        return  # transient — retry on the next tick
+        return
 
-    # Process oldest-first so the feed order and the `since` cursor stay consistent.
     messages = sorted(messages, key=lambda m: m.get("inserted_at") or "")
 
     advanced = False
@@ -453,13 +606,13 @@ def auto_poll_band() -> None:
         msg_id = msg.get("id")
         if msg_id is not None:
             if msg_id in st.session_state.seen_message_ids:
-                continue  # already ingested — avoid duplicate feed entries
+                continue
             st.session_state.seen_message_ids.add(msg_id)
             
         sender = msg.get("sender") or {}
         sender_type = sender.get("type") if isinstance(sender, dict) else msg.get("sender_type")
         if sender_type == "User":
-            continue  # skip the UI's own kickoff message
+            continue
         if ingest_agent_message(msg):
             advanced = True
 
@@ -468,7 +621,7 @@ def auto_poll_band() -> None:
 
 
 # ─────────────────────────────────────────────
-# ── AUDIT TRAIL & HUMAN GATE HELPERS ──
+# AUDIT TRAIL & HUMAN GATE HELPERS
 # ─────────────────────────────────────────────
 
 import json
@@ -557,12 +710,10 @@ def build_audit_pdf(messages: list[dict], decision: dict | None, application_id:
     
     story = []
     
-    # Header
     story.append(Paragraph("LOAN SHARK FINANCIAL SERVICES", title_style))
     story.append(Paragraph(f"Compliance Audit Trail Record — Application ID: {application_id or 'N/A'}", subtitle_style))
     story.append(Spacer(1, 8))
     
-    # Final Decision Callout if present
     if decision:
         story.append(Paragraph("Decision Summary", h2_style))
         rec = decision.get("recommendation", "N/A")
@@ -602,7 +753,6 @@ def build_audit_pdf(messages: list[dict], decision: dict | None, application_id:
             story.append(Paragraph(str(notes), body_style))
             story.append(Spacer(1, 8))
             
-    # Audit Trail Chronology
     story.append(Paragraph("Chronological Agent Processing Logs", h2_style))
     
     for idx, msg in enumerate(messages):
@@ -612,15 +762,15 @@ def build_audit_pdf(messages: list[dict], decision: dict | None, application_id:
         text = msg.get("text", "")
         
         stage_label = {
-            "doc": "Intake -> Document Handoff",
-            "credit": "Document -> Credit Verification",
-            "fraud": "Credit -> Credit Analysis",
-            "risk": "Credit -> Fraud Assessment",
-            "compliance": "Fraud -> Risk Assessment",
-            "decision": "Risk -> Compliance Check",
-            "pricing": "Compliance -> Loan Decision",
-            "communication": "Decision -> Pricing Terms",
-            "human_gate": "Pricing -> Sanction Letter Draft",
+            "doc": "Intake → Document Handoff",
+            "credit": "Document → Credit Verification",
+            "fraud": "Credit → Credit Analysis",
+            "risk": "Credit → Fraud Assessment",
+            "compliance": "Fraud → Risk Assessment",
+            "decision": "Risk → Compliance Check",
+            "pricing": "Compliance → Loan Decision",
+            "communication": "Decision → Pricing Terms",
+            "human_gate": "Pricing → Sanction Letter Draft",
             "system": "System Log",
             "thought": "Agent Internal Thought",
             "error": "Pipeline Error",
@@ -664,12 +814,10 @@ def render_audit_panel(messages: list[dict], decision: dict | None, application_
     if not messages:
         return
 
-    st.markdown('<div class="section-header">📋 Compliance Audit Trail</div>', unsafe_allow_html=True)
-    with st.expander("📄 Open Regulatory Compliance & Audit Log", expanded=False):
+    with st.expander("📋 Compliance Audit Trail & Regulatory Log", expanded=False):
         
-        # Prominent Decision Basis Callout
         if decision:
-            st.markdown("### ⚖️ Decision Basis Summary")
+            st.markdown("#### ⚖️ Decision Basis Summary")
             rec = decision.get("recommendation", "N/A")
             risk = decision.get("risk_category", "N/A")
             compliance_verdict = decision.get("compliance_verdict", "N/A")
@@ -682,7 +830,6 @@ def render_audit_panel(messages: list[dict], decision: dict | None, application_
             with c3:
                 st.metric("Compliance Verdict", compliance_verdict)
                 
-            # Call out compliance notes / violations prominently
             notes = decision.get("compliance_notes")
             if notes:
                 st.info(f"**Regulatory Note:** {notes}")
@@ -693,8 +840,7 @@ def render_audit_panel(messages: list[dict], decision: dict | None, application_
             
             st.divider()
 
-        # Chronological Audit List
-        st.markdown("### 📜 Chronological Processing Log")
+        st.markdown("#### 📜 Chronological Processing Log")
         for idx, msg in enumerate(messages):
             sender = msg.get("sender_name", "Agent")
             stage = msg.get("stage", "system")
@@ -720,17 +866,14 @@ def render_audit_panel(messages: list[dict], decision: dict | None, application_
             
             json_data = extract_json_from_message(text)
             if json_data:
-                # Show key fields table
                 display_data = {k: v for k, v in json_data.items() if k not in ["letter_body", "compliance_notes"] and v is not None}
                 st.json(display_data, expanded=False)
             else:
                 st.text(text)
             st.markdown("---")
             
-        # Download buttons
         col_json, col_pdf = st.columns(2)
         
-        # JSON export
         json_data = build_audit_json(messages, decision, application_id)
         with col_json:
             st.download_button(
@@ -741,7 +884,6 @@ def render_audit_panel(messages: list[dict], decision: dict | None, application_
                 use_container_width=True
             )
             
-        # PDF export
         with col_pdf:
             try:
                 pdf_data = build_audit_pdf(messages, decision, application_id)
@@ -768,37 +910,34 @@ def render_human_gate() -> None:
     rec = letter.get("recommendation", decision.get("recommendation", ""))
     
     st.divider()
-    st.markdown('<div class="section-header">🔐 Human Loan Officer Review</div>', unsafe_allow_html=True)
+    st.markdown("#### 🔐 Human Loan Officer Review")
 
-    # Decision summary
     badge_map = {
-        "APPROVE": ("badge-approved", "✅ APPROVE"),
-        "DENY": ("badge-denied", "❌ DENY"),
-        "COUNTER_OFFER": ("badge-counter", "🔄 COUNTER OFFER"),
+        "APPROVE":       ("ls-badge ls-badge-green",  "✅ APPROVE"),
+        "DENY":          ("ls-badge ls-badge-red",    "❌ DENY"),
+        "COUNTER_OFFER": ("ls-badge ls-badge-orange", "🔄 COUNTER OFFER"),
     }
-    badge_cls, badge_text = badge_map.get(rec, ("badge-processing", rec))
+    badge_cls, badge_text = badge_map.get(rec, ("ls-badge ls-badge-gray", rec))
 
+    card_cls = "decision-card" if rec == "APPROVE" else ("decision-card deny" if rec == "DENY" else "decision-card counter")
     st.markdown(f"""
-    <div class="decision-card">
-        <div style="margin-bottom:1rem">
-            <span class="{badge_cls}">{badge_text}</span>
-            <span style="color:#718096; font-size:0.8rem; margin-left:1rem">
-                Application {decision.get('application_id', '')} · 
-                Risk: {decision.get('risk_category', '')} · 
-                Confidence: {decision.get('confidence', '')}
-            </span>
-        </div>
+    <div class="{card_cls}">
+        <span class="{badge_cls}">{badge_text}</span>
+        <span style="color:#6b7280; font-size:0.8rem; margin-left:1rem">
+            Application {decision.get('application_id', '')} &nbsp;·&nbsp; 
+            Risk: {decision.get('risk_category', '')} &nbsp;·&nbsp; 
+            Confidence: {decision.get('confidence', '')}
+        </span>
     </div>
     """, unsafe_allow_html=True)
 
-    # Allow adjustments on Counter Offer
     is_counter_offer = (rec == "COUNTER_OFFER")
     final_amount = decision.get("approved_amount") or letter.get("approved_amount", 0.0)
     final_tenure = decision.get("approved_tenure_months") or letter.get("approved_tenure_months", 0)
 
     if rec in ("APPROVE", "COUNTER_OFFER") and decision:
         if is_counter_offer:
-            st.markdown("#### 🛠️ Adjust Counter-Offer Terms")
+            st.markdown("##### 🛠️ Adjust Counter-Offer Terms")
             col_adj_1, col_adj_2 = st.columns(2)
             with col_adj_1:
                 final_amount = st.number_input(
@@ -818,7 +957,6 @@ def render_human_gate() -> None:
                     step=6,
                     key="adj_tenure"
                 )
-            # Recalculate EMI roughly for display
             rate_str = decision.get("exact_interest_rate") or "12%"
             try:
                 rate_val = float(rate_str.replace("%", "").split()[0]) / 100.0
@@ -833,7 +971,6 @@ def render_human_gate() -> None:
         else:
             final_emi = decision.get("final_emi") or decision.get("estimated_emi", 0.0)
 
-        # Show metrics
         m1, m2, m3 = st.columns(3)
         with m1:
             st.metric("Loan Amount", format_currency(final_amount))
@@ -850,10 +987,9 @@ def render_human_gate() -> None:
     if rec == "DENY" and denial:
         st.error("**Denial Reasons:**\n" + "\n".join(f"• {r}" for r in denial))
 
-    # Formal Letter Preview
     if letter.get("letter_body"):
         st.divider()
-        st.markdown('<div class="section-header">📝 Formal Letter Preview</div>', unsafe_allow_html=True)
+        st.markdown("##### 📝 Formal Letter Preview")
         letter_body = letter['letter_body']
         if is_counter_offer:
             letter_body = letter_body.replace(f"Rs {decision.get('approved_amount', 0):,}", f"Rs {final_amount:,}")
@@ -861,36 +997,23 @@ def render_human_gate() -> None:
             
         letter_html = letter_body.replace('\\n', '<br>').replace('\n', '<br>')
         st.markdown(f"""
-        <div style="
-            background: rgba(20,30,48,0.8);
-            border: 1px solid rgba(99,179,237,0.2);
-            border-radius: 12px;
-            padding: 1.5rem 2rem;
-            font-family: 'Georgia', serif;
-            font-size: 0.82rem;
-            line-height: 1.8;
-            color: #e2e8f0;
-            max-height: 250px;
-            overflow-y: auto;
-        ">
+        <div class="ls-card" style="font-family:'Georgia',serif; font-size:0.82rem; line-height:1.8;
+             max-height:220px; overflow-y:auto; color:#374151;">
             {letter_html}
         </div>
         """, unsafe_allow_html=True)
 
-    # Compliance Notes Summary
     audit = decision.get("compliance_notes", "")
     if audit:
         with st.expander("📄 Compliance Notes Summary"):
             st.text(audit)
 
     st.divider()
-    st.markdown("#### 👤 Loan Officer Sign-off")
+    st.markdown("##### 👤 Loan Officer Sign-off")
     
-    # Name input
     officer_name = st.text_input("Officer Name", value=st.session_state.get("officer_name", ""), placeholder="e.g. Navnit Nair", key="officer_name_input")
     st.session_state.officer_name = officer_name
 
-    # Compliance Checklist
     st.markdown("**Compliance Checklist:**")
     chk1 = st.checkbox("KYC verified and applicant identity confirmed", key="chk_kyc")
     chk2 = st.checkbox("Interest rate and EMI affordability reviewed", key="chk_afford")
@@ -962,31 +1085,76 @@ def render_human_gate() -> None:
                 st.rerun()
 
 
-
 # ─────────────────────────────────────────────
-# LAYOUT
+# SIDEBAR
 # ─────────────────────────────────────────────
 
-# Header
-st.markdown("""
-<div class="lp-header">
-    <div>
-        <p class="lp-title">🦈 Loan Shark</p>
-        <p class="lp-subtitle">AI-Powered Loan Processing · 9-Agent Pipeline · Regulated & Audited</p>
+with st.sidebar:
+    # Logo
+    st.markdown("""
+    <div style="padding:1.8rem 1.2rem 1.2rem 1.2rem; border-bottom:1px solid rgba(255,255,255,0.07); margin-bottom:1rem;">
+        <span style="font-size:1.5rem; font-weight:800; color:#ffffff; letter-spacing:0.5px;">LOAN<span style="color:#1dbfa0;">shark</span></span>
     </div>
-</div>
-""", unsafe_allow_html=True)
+    """, unsafe_allow_html=True)
 
-# Two-column layout
-left_col, right_col = st.columns([1.1, 0.9], gap="large")
+    pages = [
+        "⊞  Overview",
+        "💳  Applications",
+        "🤖  Pipeline Monitor",
+        "📋  Audit Logs",
+        "⚙️  Settings",
+    ]
+
+    selected_page = st.radio("nav", pages, index=1, label_visibility="collapsed")
+    if selected_page != st.session_state.current_page:
+        st.session_state.current_page = selected_page
+        st.rerun()
+
+    # Spacer + bottom items
+    st.markdown("<div style='flex:1'></div>", unsafe_allow_html=True)
+    for _ in range(8):
+        st.write("")
+
+    st.markdown("""
+    <div style="padding:0.8rem 1.2rem; border-top:1px solid rgba(255,255,255,0.07);">
+        <span style="color:#9ca3af; font-size:0.85rem;">→  Logout</span>
+    </div>
+    """, unsafe_allow_html=True)
+
+    st.toggle("🛡️ Demo Safe Mode", value=st.session_state.get("demo_safe_mode", True), key="demo_safe_mode")
+
+    st.markdown("""
+    <div style="padding:0.8rem 1.2rem; margin-top:0.5rem; display:flex; align-items:center; gap:0.7rem;">
+        <div style="width:32px;height:32px;background:#1dbfa0;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:0.85rem;color:#fff;font-weight:700;">L</div>
+        <div>
+            <div style="color:#e5e7eb; font-size:0.82rem; font-weight:600;">Loan Officer</div>
+            <div style="color:#6b7280; font-size:0.72rem;">View profile</div>
+        </div>
+    </div>
+    """, unsafe_allow_html=True)
+
 
 # ─────────────────────────────────────────────
-# LEFT: APPLICATION FORM
+# PAGE: APPLICATIONS (FORM)
 # ─────────────────────────────────────────────
 
-with left_col:
-    # ── QUICK DEMO BUTTONS ──
-    st.markdown('<div class="section-header">⚡ Quick Demo</div>', unsafe_allow_html=True)
+def render_applications_page():
+    today_str = datetime.now().strftime("%b %d, %Y")
+
+    # Top bar
+    st.markdown(f"""
+    <div class="ls-topbar">
+        <span class="ls-topbar-date">» {today_str}</span>
+        <div class="ls-topbar-right">
+            <span style="font-size:1.1rem">🔔</span>
+            <input type="text" class="ls-search" placeholder="Search here">
+        </div>
+    </div>
+    """, unsafe_allow_html=True)
+
+    st.markdown('<p class="ls-section-label">New Application</p>', unsafe_allow_html=True)
+
+    # Demo quick-load row
     d1, d2, d3 = st.columns(3)
     with d1:
         if st.button("✅ Good Applicant", use_container_width=True, help="Salaried, 768 credit score → likely APPROVE"):
@@ -1005,106 +1173,73 @@ with left_col:
         demo = DEMO_SCENARIOS[st.session_state.active_demo]
         st.info(f"📋 Demo loaded: **{demo['label']}** — fill in Band credentials below and click Submit.")
 
-    st.divider()
-    st.markdown('<div class="section-header">📋 Loan Application</div>', unsafe_allow_html=True)
-
-    # Get demo defaults if a scenario is active
     _d = DEMO_SCENARIOS.get(st.session_state.active_demo or "", {})
 
     with st.form("loan_form", clear_on_submit=False):
 
-        # Personal Info
-        st.markdown("**Personal Information**")
-        col1, col2 = st.columns(2)
+        # ── Applicant Details card ──
+        st.markdown('<p class="ls-card-title" style="color:#6b7280;font-size:1rem;font-weight:600;">Applicant Details</p>', unsafe_allow_html=True)
+
+        col1, col2, col3 = st.columns(3)
         with col1:
-            applicant_name = st.text_input("Full Name", value=_d.get("applicant_name", ""), placeholder="Rahul Sharma")
-            applicant_age = st.number_input("Age", min_value=18, max_value=70, value=int(_d.get("applicant_age", 30)))
+            applicant_name = st.text_input("Full Name", value=_d.get("applicant_name", ""), placeholder="Priya Sharma")
         with col2:
-            credit_score = st.number_input(
-                "Credit Score (leave 0 if unknown)",
-                min_value=0, max_value=900, value=int(_d.get("credit_score") or 0),
-                help="CIBIL/credit score, 300–900 range"
-            )
+            applicant_age = st.number_input("Age", min_value=18, max_value=70, value=int(_d.get("applicant_age", 30)))
+        with col3:
             currency = st.selectbox("Currency", ["INR", "USD"])
 
-        st.divider()
-
-        # Employment
-        st.markdown("**Employment Details**")
-        col3, col4 = st.columns(2)
-        with col3:
+        col4, col5, col6 = st.columns(3)
+        with col4:
+            credit_score = st.number_input("Credit Score (0 if unknown)", min_value=0, max_value=900, value=int(_d.get("credit_score") or 0))
+        with col5:
             emp_opts = ["salaried", "self_employed", "business_owner", "unemployed"]
             emp_default = emp_opts.index(_d["employment_type"]) if _d.get("employment_type") in emp_opts else 0
             employment_type = st.selectbox("Employment Type", emp_opts, index=emp_default)
-            employer_name = st.text_input("Employer / Business Name", value=_d.get("employer_name") or "", placeholder="TCS, Infosys, Self...")
-        with col4:
-            monthly_income = st.number_input(
-                "Monthly Income", min_value=0.0, value=float(_d.get("monthly_income", 75000.0)), step=5000.0
-            )
-            years_employed = st.number_input(
-                "Years at Current Job", min_value=0.0, max_value=40.0, value=float(_d.get("years_employed", 3.0)), step=0.5
-            )
+        with col6:
+            employer_name = st.text_input("Employer / Business", value=_d.get("employer_name") or "", placeholder="Infosys, Self...")
 
-        st.divider()
+        col7, col8 = st.columns(2)
+        with col7:
+            monthly_income = st.number_input("Monthly Income", min_value=0.0, value=float(_d.get("monthly_income", 75000.0)), step=5000.0)
+        with col8:
+            years_employed = st.number_input("Years at Current Job", min_value=0.0, max_value=40.0, value=float(_d.get("years_employed", 3.0)), step=0.5)
 
-        # Loan Details
-        st.markdown("**Loan Request**")
-        col5, col6 = st.columns(2)
-        with col5:
-            loan_amount = st.number_input(
-                "Loan Amount", min_value=10000.0, value=float(_d.get("loan_amount_requested", 500000.0)), step=10000.0
-            )
+        st.markdown("<hr>", unsafe_allow_html=True)
+
+        # ── Loan Request card ──
+        st.markdown('<p class="ls-card-title" style="color:#6b7280;font-size:1rem;font-weight:600;">Loan Request</p>', unsafe_allow_html=True)
+
+        col9, col10, col11 = st.columns(3)
+        with col9:
+            loan_amount = st.number_input("Loan Amount", min_value=10000.0, value=float(_d.get("loan_amount_requested", 500000.0)), step=10000.0)
+        with col10:
             loan_opts = ["home", "vehicle", "education", "personal", "business"]
             loan_purpose_default = loan_opts.index(_d["loan_purpose"]) if _d.get("loan_purpose") in loan_opts else 0
             loan_purpose = st.selectbox("Loan Purpose", loan_opts, index=loan_purpose_default)
-        with col6:
-            loan_tenure = st.slider(
-                "Tenure (months)", min_value=6, max_value=360, value=int(_d.get("loan_tenure_months", 60)), step=6
-            )
-            existing_debt = st.number_input(
-                "Existing Monthly Debt Payments",
-                min_value=0.0, value=0.0, step=1000.0,
-                help="Total EMIs you already pay every month"
-            )
+        with col11:
+            existing_debt = st.number_input("Existing Monthly Debt", min_value=0.0, value=float(_d.get("existing_debt_monthly", 0.0)), step=1000.0)
 
-        collateral = st.text_input(
-            "Collateral Offered (optional)",
-            placeholder="Property at Delhi, Vehicle registration...",
-        )
+        col12, col13 = st.columns([1, 2])
+        with col12:
+            loan_tenure = st.slider("Tenure (months)", min_value=6, max_value=360, value=int(_d.get("loan_tenure_months", 60)), step=6)
+        with col13:
+            collateral = st.text_input("Collateral Offered (optional)", placeholder="Property, Vehicle registration...")
 
-        st.divider()
+        st.markdown("<hr>", unsafe_allow_html=True)
 
-        # Band Connection
-        st.markdown("**Band Connection**")
-        band_chat_id = st.text_input(
-            "Band Chat / Room ID",
-            value=st.session_state.chat_id,
-            placeholder="chat_id of your LoanShark room",
-            help="From app.band.ai — the room where all 9 agents are participants",
-        )
-        intake_handle = st.text_input(
-            "Intake Agent Handle (@mention to start)",
-            value=st.session_state.intake_handle,
-            placeholder="@yourusername/IntakeAgent",
-            help="Band routes the kickoff to this handle — must match the Intake agent's handle.",
-        )
-        band_human_key = st.text_input(
-            "Band Human API Key",
-            type="password",
-            placeholder="Leave blank if set in .env (BAND_HUMAN_API_KEY)",
-            help="Your personal Band API key — the UI uses it to post and poll messages.",
-        )
-        demo_safe_mode = st.checkbox(
-            "🛡️ Demo-safe Mode (Simulated Replay)",
-            value=st.session_state.get("demo_safe_mode", True),
-            help="Bypass live Band SDK/API calls and run a realistic, canned sequence of agent steps on a timer. Safe for offline or quota issues."
-        )
+        # ── Band Connection card ──
+        st.markdown('<p class="ls-card-title" style="color:#6b7280;font-size:1rem;font-weight:600;">Band Connection</p>', unsafe_allow_html=True)
 
-        submitted = st.form_submit_button(
-            "🚀 Submit Application",
-            use_container_width=True,
-            type="primary"
-        )
+        bc1, bc2 = st.columns(2)
+        with bc1:
+            band_chat_id = st.text_input("Band Chat / Room ID", value=st.session_state.chat_id, placeholder="chat_id of your LoanShark room")
+        with bc2:
+            intake_handle = st.text_input("Intake Agent Handle (@mention)", value=st.session_state.intake_handle, placeholder="@yourusername/IntakeAgent")
+
+        band_human_key = st.text_input("Band Human API Key", type="password", placeholder="Leave blank if set in .env")
+        demo_safe_mode = st.checkbox("🛡️ Demo-safe Mode (Simulated Replay)", value=st.session_state.get("demo_safe_mode", True))
+
+        submitted = st.form_submit_button("🚀 Submit Application", use_container_width=True, type="primary")
 
     if submitted:
         st.session_state.demo_safe_mode = demo_safe_mode
@@ -1116,10 +1251,7 @@ with left_col:
         if not demo_safe_mode and (not applicant_name or not band_chat_id.strip() or not intake_handle.strip()):
             st.error("Please fill in applicant name, Band Chat ID, and Intake Agent Handle.")
         elif not demo_safe_mode and not is_configured():
-            st.error(
-                f"Band not configured — missing: {', '.join(missing_config())}. "
-                "Set BAND_HUMAN_API_KEY in .env or paste it in the field above."
-            )
+            st.error(f"Band not configured — missing: {', '.join(missing_config())}. Set BAND_HUMAN_API_KEY in .env or paste it above.")
         else:
             form_data = {
                 "applicant_name": applicant_name,
@@ -1150,6 +1282,7 @@ with left_col:
             st.session_state.loan_letter = None
             st.session_state.seen_message_ids = set()
             st.session_state.show_override_reason_input = False
+            st.session_state.current_page = "🤖  Pipeline Monitor"
 
             if demo_safe_mode:
                 st.session_state.replay_step = 0
@@ -1166,17 +1299,14 @@ with left_col:
                     "time": datetime.now().strftime("%H:%M:%S"),
                     "text": f"✅ Application {app_id} submitted. Triggering 9-agent pipeline via Band...",
                 })
-
-                # Post the kickoff to the Band room via the Human API (must @mention Intake).
                 content = f"{handle} {message}"
                 try:
                     post_message(chat_id, content, mention_handle=handle)
                     st.session_state.agent_messages.append({
                         "stage": "system",
                         "time": datetime.now().strftime("%H:%M:%S"),
-                        "text": "📡 Posted to Band. Agents are processing — the pipeline will advance automatically...",
+                        "text": "📡 Posted to Band. Agents are processing...",
                     })
-                    st.success("Submitted to Band! Watch the pipeline auto-advance on the right →")
                 except BandClientError as exc:
                     st.session_state.pipeline_status = "idle"
                     st.session_state.agent_messages.append({
@@ -1190,130 +1320,136 @@ with left_col:
 
 
 # ─────────────────────────────────────────────
-# RIGHT: PIPELINE STATUS + AGENT FEED
+# PAGE: PIPELINE MONITOR
 # ─────────────────────────────────────────────
 
-with right_col:
+def render_pipeline_page():
+    today_str = datetime.now().strftime("%b %d, %Y")
+    form_data = st.session_state.get("last_form_data") or st.session_state.get("loan_decision") or {}
+    app_id     = st.session_state.get("application_id", "—")
+    name       = form_data.get("applicant_name", "—")
+    emp_type   = (form_data.get("employment_type") or "—").replace("_", " ").title()
+    amt        = format_currency(form_data.get("loan_amount_requested", 0)) if form_data else "—"
+    purpose    = (form_data.get("loan_purpose") or "—").title()
+    status     = st.session_state.pipeline_status
 
-    # Pipeline status
-    st.markdown('<div class="section-header">🤖 Agent Pipeline</div>', unsafe_allow_html=True)
-
-    status = st.session_state.pipeline_status
-    intake_done     = any(m["stage"] == "doc"          for m in st.session_state.agent_messages)
-    doc_done        = any(m["stage"] == "credit"        for m in st.session_state.agent_messages)
-    credit_done     = any(m["stage"] == "fraud"         for m in st.session_state.agent_messages)
-    fraud_done      = any(m["stage"] == "risk"          for m in st.session_state.agent_messages)
-    risk_done       = any(m["stage"] == "compliance"    for m in st.session_state.agent_messages)
-    compliance_done = any(m["stage"] == "decision"      for m in st.session_state.agent_messages)
-    decision_done   = any(m["stage"] == "pricing"       for m in st.session_state.agent_messages)
-    pricing_done    = any(m["stage"] == "communication" for m in st.session_state.agent_messages)
-    comm_done       = (st.session_state.loan_letter is not None
-                       or any(m["stage"] == "human_gate" for m in st.session_state.agent_messages))
-
-    all_stages = [
-        ("Intake Agent",        "📥", intake_done),
-        ("Document Agent",      "📄", doc_done),
-        ("Credit Agent",        "💳", credit_done),
-        ("Fraud Agent",         "🔍", fraud_done),
-        ("Risk Agent",          "📊", risk_done),
-        ("Compliance Agent",    "⚖️", compliance_done),
-        ("Decision Agent",      "🎯", decision_done),
-        ("Pricing Agent",       "💰", pricing_done),
-        ("Communication Agent", "✉️", comm_done),
-    ]
-
-    done_list = [intake_done, doc_done, credit_done, fraud_done,
-                 risk_done, compliance_done, decision_done, pricing_done, comm_done]
-
-    for step_num, (agent_name, icon, done) in enumerate(all_stages):
-        prev_done = done_list[step_num - 1] if step_num > 0 else True
-        active = status == "running" and prev_done and not done
-        card_class = "done" if done else ("active" if active else "pipeline-card")
-        indicator = "✅" if done else ("🔄" if active else "⏳")
-        status_text = "Complete" if done else ("Processing..." if active else "Waiting")
-        st.markdown(f"""
-        <div class="pipeline-card {card_class}">
-            <span style="font-size:1.1rem">{icon}</span>
-            <strong style="color:#e2e8f0; margin-left:0.5rem; font-size:0.85rem">{agent_name}</strong>
-            <span style="float:right; font-size:0.75rem; color:#a0aec0">{indicator} {status_text}</span>
+    # Top bar
+    st.markdown(f"""
+    <div class="ls-topbar">
+        <span class="ls-topbar-date">» {today_str}</span>
+        <div class="ls-topbar-right">
+            <span style="font-size:1.1rem">🔔</span>
+            <input type="text" class="ls-search" placeholder="Search here">
         </div>
-        """, unsafe_allow_html=True)
+    </div>
+    """, unsafe_allow_html=True)
 
-    # Auto-advance: poll Band every 2s while the pipeline is running
+    # ── Applicant Details card ──
+    st.markdown("""
+    <div class="ls-card">
+        <p class="ls-card-title">Applicant Details</p>
+    """, unsafe_allow_html=True)
+
+    st.markdown(f"""
+        <div class="ls-detail-grid">
+            <div>
+                <p class="ls-detail-label">Applicant Name</p>
+                <p class="ls-detail-value">{name}</p>
+            </div>
+            <div>
+                <p class="ls-detail-label">Employment Type</p>
+                <p class="ls-detail-value">{emp_type}</p>
+            </div>
+            <div>
+                <p class="ls-detail-label">Loan Amount</p>
+                <p class="ls-detail-value">{amt}</p>
+            </div>
+            <div>
+                <p class="ls-detail-label">Loan Purpose</p>
+                <p class="ls-detail-value">{purpose}</p>
+            </div>
+            <div>
+                <p class="ls-detail-label">Application ID</p>
+                <p class="ls-detail-value">{app_id}</p>
+            </div>
+            <div>
+                <p class="ls-detail-label">Status</p>
+                <p class="ls-detail-value">{status.replace('_', ' ').title()}</p>
+            </div>
+        </div>
+        <div class="ls-action-row">
+            <span class="ls-btn-teal">View Full Application</span>
+            <span class="ls-btn-ghost">Archive</span>
+        </div>
+    </div>
+    """, unsafe_allow_html=True)
+
+
+
+    # ── Agent Pipeline History table ──
+    msgs = st.session_state.agent_messages
+
+    # Build table rows — NO leading whitespace (markdown code-block bug)
+    if not msgs:
+        rows_html = '<tr><td colspan="5" style="text-align:center;color:#9ca3af;padding:2rem 0;">No active applications. Submit an application to start the pipeline.</td></tr>'
+    else:
+        rows_html = ""
+        for msg in reversed(msgs):
+            time_str = msg.get("time", "")
+            stage    = msg.get("stage", "system")
+            sender   = msg.get("sender_name", "Agent")
+            text     = msg.get("text", "")
+
+            if stage == "error":
+                status_cls, status_lbl = "red", "Failed"
+            elif stage in ("system", "thought"):
+                status_cls, status_lbl = "gray", "Info"
+            elif stage == "human_gate":
+                status_cls, status_lbl = "blue", "Awaiting"
+            else:
+                status_cls, status_lbl = "green", "Complete"
+
+            action_map = {
+                "doc": "Intake", "credit": "Doc Verify", "fraud": "Credit Check",
+                "risk": "Fraud Scan", "compliance": "Risk Assess", "decision": "Compliance",
+                "pricing": "Decision", "communication": "Pricing", "human_gate": "Human Gate",
+                "system": "System", "thought": "Thinking", "error": "Error",
+            }
+            action = action_map.get(stage, stage.title())
+
+            preview = [l.strip() for l in text.split("\n") if l.strip() and not l.strip().startswith("@")]
+            preview = preview[0] if preview else text[:100]
+            if len(preview) > 70:
+                preview = preview[:70] + "\u2026"
+
+            # Single-line per row — no leading spaces = no markdown code-block trigger
+            rows_html += f'<tr><td>{time_str}</td><td class="{status_cls}">{status_lbl}</td><td>{sender}</td><td>{action}</td><td class="bold" style="text-align:right">{preview}</td></tr>'
+
+    # Use st.html() — bypasses the markdown parser entirely, renders raw HTML
+    table_html = f"""<div class="ls-card"><p class="ls-card-title">Agent Pipeline History</p><div class="ls-table-wrap"><table class="ls-table"><thead><tr><th>Time</th><th>Status</th><th>Agent Node</th><th>Action</th><th style="text-align:right">Output Preview</th></tr></thead><tbody>{rows_html}</tbody></table></div><div class="ls-load-more-wrap"><span class="ls-load-more">Poll Latest Updates</span></div></div>"""
+    st.html(table_html)
+
+    # Auto-poll
     auto_poll_band()
 
-    st.divider()
-
-    # Agent message feed
-    st.markdown('<div class="section-header">💬 Live Agent Feed</div>', unsafe_allow_html=True)
-
-    if not st.session_state.agent_messages:
-        st.markdown(
-            "<div style='color:#4a5568; text-align:center; padding:2rem; font-size:0.9rem'>"
-            "Agent messages will appear here once you submit an application."
-            "</div>",
-            unsafe_allow_html=True
-        )
-    else:
-        for msg in st.session_state.agent_messages:
-            sender_name = msg.get("sender_name", "Agent")
-            stage_label = {
-                "doc":           f"📥 {sender_name} → Document Handoff",
-                "credit":        f"📄 {sender_name} → Credit Verification",
-                "fraud":         f"💳 {sender_name} → Credit Analysis",
-                "risk":          f"🔍 {sender_name} → Fraud Assessment",
-                "compliance":    f"📊 {sender_name} → Risk Assessment",
-                "decision":      f"⚖️ {sender_name} → Compliance Check",
-                "pricing":       f"🎯 {sender_name} → Loan Decision",
-                "communication": f"💰 {sender_name} → Pricing Terms",
-                "human_gate":    f"✉️ {sender_name} → Sanction Letter",
-                "system":        "System",
-                "thought":       f"🧠 {sender_name} (Thinking)",
-                "error":         f"⚠️ {sender_name} (Error)",
-            }.get(msg["stage"], sender_name)
-
-            color = {
-                "doc":           "#63b3ed",
-                "credit":        "#76e4f7",
-                "fraud":         "#fbd38d",
-                "risk":          "#fc8181",
-                "compliance":    "#b794f4",
-                "decision":      "#f6ad55",
-                "pricing":       "#68d391",
-                "communication": "#9f7aea",
-                "human_gate":    "#ed64a6",
-                "system":        "#a0aec0",
-                "thought":       "#718096",
-                "error":         "#fc8181",
-            }.get(msg["stage"], "#a0aec0")
-
-            st.markdown(f"""
-            <div class="agent-message {msg['stage']}">
-                <span style="font-size:0.7rem; color:{color}; font-weight:700">
-                    {stage_label} · {msg['time']}
-                </span><br/>
-                {msg['text'][:800]}{'...' if len(msg['text']) > 800 else ''}
-            </div>
-            """, unsafe_allow_html=True)
-
-    # Manual fallback — only needed if the UI cannot reach Band to auto-poll
+    # Manual fallback
     if status == "running":
         with st.expander("📥 Manual fallback — paste an agent message"):
             st.caption("Auto-advance polls Band every 2s. Use this only if polling is unavailable.")
-            agent_response = st.text_area("Paste Band room message here:", height=130, key="agent_paste")
+            agent_response = st.text_area("Paste Band room message here:", height=100, key="agent_paste")
             if st.button("Process Message", use_container_width=True):
                 if agent_response:
                     ingest_agent_message(agent_response)
                     st.rerun()
 
-    # ─── HUMAN GATE ───
+    # Human gate
     if status == "awaiting_approval" and st.session_state.loan_letter:
         render_human_gate()
 
-    # Render Audit Trail Panel
+    # Audit trail
     render_audit_panel(st.session_state.agent_messages, st.session_state.loan_decision, st.session_state.application_id)
 
-    # ─── COMPLETE ───
+    # Complete
     if status == "complete":
         st.success("🎉 Application finalized. Audit trail logged.")
         if st.button("Process New Application", use_container_width=True):
@@ -1324,14 +1460,110 @@ with right_col:
             st.session_state.application_id = None
             st.rerun()
 
+
 # ─────────────────────────────────────────────
-# FOOTER
+# PAGE: OVERVIEW (summary dashboard)
 # ─────────────────────────────────────────────
-st.markdown("---")
-st.markdown(
-    "<div style='text-align:center; color:#4a5568; font-size:0.75rem'>"
-    "Loan Shark · Built with Band SDK · Track 3: Regulated & High-Stakes Workflows · "
-    "Team TrenCoders · Band of Agents Hackathon 2026"
-    "</div>",
-    unsafe_allow_html=True
-)
+
+def render_overview_page():
+    today_str = datetime.now().strftime("%b %d, %Y")
+    st.markdown(f"""
+    <div class="ls-topbar">
+        <span class="ls-topbar-date">» {today_str}</span>
+        <div class="ls-topbar-right">
+            <span style="font-size:1.1rem">🔔</span>
+            <input type="text" class="ls-search" placeholder="Search here">
+        </div>
+    </div>
+    """, unsafe_allow_html=True)
+
+    msgs   = st.session_state.agent_messages
+    status = st.session_state.pipeline_status
+
+    approved_count  = sum(1 for m in msgs if m.get("stage") == "pricing")
+    pipeline_active = 1 if status == "running" else 0
+    total_apps      = 1 if st.session_state.application_id else 0
+
+    st.markdown(f"""
+    <div class="ls-card">
+        <p class="ls-card-title">System Overview</p>
+        <div class="ls-detail-grid">
+            <div>
+                <p class="ls-detail-label">Total Applications</p>
+                <p class="ls-detail-value">{total_apps}</p>
+            </div>
+            <div>
+                <p class="ls-detail-label">Pipeline Active</p>
+                <p class="ls-detail-value">{pipeline_active}</p>
+            </div>
+            <div>
+                <p class="ls-detail-label">Decisions Made</p>
+                <p class="ls-detail-value">{approved_count}</p>
+            </div>
+        </div>
+    </div>
+    """, unsafe_allow_html=True)
+
+    rows = ""
+    for msg in (msgs[-10:] if len(msgs) > 10 else msgs):
+        stage = msg.get("stage", "system")
+        sc = "green" if stage not in ("error", "system") else ("red" if stage == "error" else "gray")
+        lbl = "Complete" if stage not in ("error", "system") else ("Failed" if stage == "error" else "Info")
+        sender = msg.get("sender_name", "Agent")
+        t = msg.get("time", "")
+        txt = msg.get("text", "")[:60] + ("…" if len(msg.get("text","")) > 60 else "")
+        rows += f"""
+        <tr>
+            <td>{t}</td>
+            <td class="{sc}">{lbl}</td>
+            <td>{sender}</td>
+            <td class="bold" style="text-align:right">{txt}</td>
+        </tr>
+        """
+
+    if not rows:
+        rows = '<tr><td colspan="4" style="text-align:center;color:#9ca3af;padding:2rem 0;">No activity yet. Submit an application to begin.</td></tr>'
+
+    st.markdown(f"""
+    <div class="ls-card">
+        <p class="ls-card-title">Recent Activity</p>
+        <div class="ls-table-wrap">
+            <table class="ls-table">
+                <thead>
+                    <tr><th>Time</th><th>Status</th><th>Agent</th><th style="text-align:right">Detail</th></tr>
+                </thead>
+                <tbody>{rows}</tbody>
+            </table>
+        </div>
+    </div>
+    """, unsafe_allow_html=True)
+
+
+# ─────────────────────────────────────────────
+# ROUTER
+# ─────────────────────────────────────────────
+
+page = st.session_state.current_page
+
+if page == "💳  Applications":
+    # Store last form data for pipeline page
+    render_applications_page()
+elif page == "🤖  Pipeline Monitor":
+    render_pipeline_page()
+elif page == "⊞  Overview":
+    render_overview_page()
+else:
+    today_str = datetime.now().strftime("%b %d, %Y")
+    st.markdown(f"""
+    <div class="ls-topbar">
+        <span class="ls-topbar-date">» {today_str}</span>
+        <div class="ls-topbar-right">
+            <span style="font-size:1.1rem">🔔</span>
+            <input type="text" class="ls-search" placeholder="Search here">
+        </div>
+    </div>
+    <div class="ls-card" style="text-align:center; color:#9ca3af; padding:3rem;">
+        <p style="font-size:1.1rem; font-weight:600; color:#374151; margin-bottom:0.5rem;">Coming Soon</p>
+        <p>This section is not yet implemented in the demo.</p>
+    </div>
+    """, unsafe_allow_html=True)
