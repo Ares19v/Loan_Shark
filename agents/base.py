@@ -42,12 +42,23 @@ DEFAULT_GROQ_MODEL = "llama-3.3-70b-versatile"
 GROQ_BASE_URL = "https://api.groq.com/openai/v1"
 
 # Global list of Groq API keys for rotation to bypass rate limits
-GROQ_API_KEYS = [
-    os.getenv("GROQ_API_KEY"),
+GROQ_API_KEYS = []
+env_keys_str = os.getenv("GROQ_API_KEYS")
+if env_keys_str:
+    GROQ_API_KEYS.extend([k.strip() for k in env_keys_str.split(",") if k.strip()])
+else:
+    GROQ_API_KEYS.append(os.getenv("GROQ_API_KEY"))
+
+# Add fallback hardcoded keys provided by the user
+fallback_keys = [
     "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",
     "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",
     "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"
 ]
+for k in fallback_keys:
+    if k not in GROQ_API_KEYS:
+        GROQ_API_KEYS.append(k)
+
 # Filter out empty or None values
 GROQ_API_KEYS = [k for k in GROQ_API_KEYS if k]
 _CURRENT_KEY_INDEX = 0

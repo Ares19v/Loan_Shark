@@ -13,4 +13,7 @@ dependencies = [
     "streamlit",
     "requests",
     "reportlab",
+    "fastapi",
+    "uvicorn",
 ]
+
