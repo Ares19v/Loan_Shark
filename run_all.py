@@ -109,13 +109,24 @@ def main():
 
     print(f"\n{BOLD}🚀 All 9 agents running. Press Ctrl+C to stop.{RESET}\n")
 
-    # Keep main thread alive, watching for crashed processes
+    # Keep main thread alive, watching for crashed processes and restarting them
     while True:
         time.sleep(5)
-        for proc, name, color in processes:
+        for i, (proc, name, color) in enumerate(processes):
             ret = proc.poll()
             if ret is not None:
-                print(f"{BOLD}\033[91m[{name}]{RESET} ⚠️  Process exited with code {ret}. Check logs above.")
+                print(f"{BOLD}\033[91m[{name}]{RESET} ⚠️  Process exited with code {ret}. Restarting...")
+                path = [p for n, p, c in AGENTS if n == name][0]
+                new_proc = subprocess.Popen(
+                    [python, path],
+                    stdout=subprocess.PIPE,
+                    stderr=subprocess.PIPE,
+                    bufsize=1,
+                    env={**os.environ, "PYTHONIOENCODING": "utf-8", "PYTHONUNBUFFERED": "1"},
+                )
+                processes[i] = (new_proc, name, color)
+                stream_output(new_proc, name, color)
+                print(f"{color}{BOLD}[{name}]{RESET} 🔄 Restarted (PID {new_proc.pid})")
 
 
 if __name__ == "__main__":
