@@ -1237,12 +1237,11 @@ def render_applications_page():
             intake_handle = st.text_input("Intake Agent Handle (@mention)", value=st.session_state.intake_handle, placeholder="@yourusername/IntakeAgent")
 
         band_human_key = st.text_input("Band Human API Key", type="password", placeholder="Leave blank if set in .env")
-        demo_safe_mode = st.checkbox("🛡️ Demo-safe Mode (Simulated Replay)", value=st.session_state.get("demo_safe_mode", True))
+        demo_safe_mode = st.session_state.get("demo_safe_mode", True)
 
         submitted = st.form_submit_button("🚀 Submit Application", use_container_width=True, type="primary")
 
     if submitted:
-        st.session_state.demo_safe_mode = demo_safe_mode
         if band_human_key.strip():
             os.environ["BAND_HUMAN_API_KEY"] = band_human_key.strip()
         if band_chat_id.strip():
