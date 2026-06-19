@@ -146,7 +146,7 @@ def _request(
 
 
 def _get_agent_fallback_key() -> str | None:
-    """Read agent_config.yaml to get the document agent's api_key as a fallback."""
+    """Read agent_config.yaml or env vars to get any agent's api_key as a fallback (preferring document)."""
     try:
         import yaml
         from pathlib import Path
@@ -154,18 +154,25 @@ def _get_agent_fallback_key() -> str | None:
         if config_path.exists():
             with open(config_path) as f:
                 cfg = yaml.safe_load(f) or {}
-            # Use DocumentAgent key to send/poll messages.
-            # DocumentAgent is the second agent in the pipeline.
-            # Any agent key that is NOT intake works perfectly.
             fallback_agent = cfg.get("document", {})
-            return fallback_agent.get("api_key", "").strip()
+            val = fallback_agent.get("api_key", "").strip()
+            if val:
+                return val
     except Exception:
         pass
+
+    # Try env variables (document agent or other agents as fallback)
+    agents = ["document", "credit", "fraud", "risk", "compliance", "decision", "pricing", "communication", "intake"]
+    for agent in agents:
+        k_upper = agent.upper()
+        val = os.getenv(f"BAND_API_KEY_{k_upper}") or os.getenv(f"BAND_{k_upper}_API_KEY")
+        if val and val.strip():
+            return val.strip()
     return None
 
 
 def _get_all_agent_keys() -> list[str]:
-    """Read agent_config.yaml to get all agent API keys."""
+    """Read agent_config.yaml or env vars to get all agent API keys."""
     keys = []
     try:
         import yaml
@@ -176,10 +183,19 @@ def _get_all_agent_keys() -> list[str]:
                 cfg = yaml.safe_load(f) or {}
             for agent_name, agent_cfg in cfg.items():
                 k = agent_cfg.get("api_key", "").strip()
-                if k:
+                if k and k not in keys:
                     keys.append(k)
     except Exception:
         pass
+
+    # Fall back / add env variables
+    agents = ["intake", "document", "credit", "fraud", "risk", "compliance", "decision", "pricing", "communication"]
+    for agent in agents:
+        k_upper = agent.upper()
+        val = os.getenv(f"BAND_API_KEY_{k_upper}") or os.getenv(f"BAND_{k_upper}_API_KEY")
+        if val and val.strip() and val.strip() not in keys:
+            keys.append(val.strip())
+            
     return keys
 
 

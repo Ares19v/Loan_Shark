@@ -345,6 +345,27 @@ replies are NOT delivered to the room.
 Call the tool exactly once. Do not also reply in plain text.
 """
 
+def load_agent_credentials(config_key: str) -> tuple[str, str]:
+    """Load agent credentials (agent_id, api_key) from agent_config.yaml or env vars."""
+    try:
+        agent_id, api_key = load_agent_config(config_key)
+        if agent_id and api_key:
+            return agent_id, api_key
+    except Exception as e:
+        print(f"[INFO] load_agent_config failed for '{config_key}', trying environment fallback: {e}")
+
+    k_upper = config_key.upper()
+    agent_id = os.getenv(f"BAND_AGENT_ID_{k_upper}") or os.getenv(f"BAND_{k_upper}_AGENT_ID")
+    api_key = os.getenv(f"BAND_API_KEY_{k_upper}") or os.getenv(f"BAND_{k_upper}_API_KEY")
+
+    if not agent_id or not api_key:
+        raise ValueError(
+            f"Could not find agent credentials for '{config_key}'. "
+            f"Please check agent_config.yaml or environment variables "
+            f"BAND_AGENT_ID_{k_upper} and BAND_API_KEY_{k_upper}."
+        )
+    return agent_id, api_key
+
 
 def run_agent(
     *,
@@ -368,7 +389,7 @@ def run_agent(
 
         load_dotenv()
 
-        agent_id, api_key = load_agent_config(config_key)
+        agent_id, api_key = load_agent_credentials(config_key)
 
         CONCISE_THINKING_PROMPT = """
 
