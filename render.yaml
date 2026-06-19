@@ -1,0 +1,68 @@
+services:
+  - type: web
+    name: loanshark-backend
+    env: python
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn api:app --host 0.0.0.0 --port $PORT
+    envVars:
+      - key: BAND_REST_URL
+        value: https://app.band.ai/
+      - key: BAND_WS_URL
+        value: wss://app.band.ai/api/v1/socket/websocket
+      - key: BAND_CHAT_ID
+        sync: false
+      - key: BAND_HUMAN_API_KEY
+        sync: false
+
+  - type: worker
+    name: loanshark-agents
+    env: python
+    buildCommand: pip install -r requirements.txt
+    startCommand: python run_all.py
+    envVars:
+      - key: BAND_REST_URL
+        value: https://app.band.ai/
+      - key: BAND_WS_URL
+        value: wss://app.band.ai/api/v1/socket/websocket
+      - key: BAND_USER_HANDLE
+        sync: false
+      - key: BAND_CHAT_ID
+        sync: false
+      - key: GROQ_API_KEYS
+        sync: false
+      - key: BAND_AGENT_ID_INTAKE
+        sync: false
+      - key: BAND_API_KEY_INTAKE
+        sync: false
+      - key: BAND_AGENT_ID_DOCUMENT
+        sync: false
+      - key: BAND_API_KEY_DOCUMENT
+        sync: false
+      - key: BAND_AGENT_ID_CREDIT
+        sync: false
+      - key: BAND_API_KEY_CREDIT
+        sync: false
+      - key: BAND_AGENT_ID_FRAUD
+        sync: false
+      - key: BAND_API_KEY_FRAUD
+        sync: false
+      - key: BAND_AGENT_ID_RISK
+        sync: false
+      - key: BAND_API_KEY_RISK
+        sync: false
+      - key: BAND_AGENT_ID_COMPLIANCE
+        sync: false
+      - key: BAND_API_KEY_COMPLIANCE
+        sync: false
+      - key: BAND_AGENT_ID_DECISION
+        sync: false
+      - key: BAND_API_KEY_DECISION
+        sync: false
+      - key: BAND_AGENT_ID_PRICING
+        sync: false
+      - key: BAND_API_KEY_PRICING
+        sync: false
+      - key: BAND_AGENT_ID_COMMUNICATION
+        sync: false
+      - key: BAND_API_KEY_COMMUNICATION
+        sync: false
