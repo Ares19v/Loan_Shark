@@ -13,20 +13,7 @@ services:
         sync: false
       - key: BAND_HUMAN_API_KEY
         sync: false
-
-  - type: worker
-    name: loanshark-agents
-    env: python
-    buildCommand: pip install -r requirements.txt
-    startCommand: python run_all.py
-    envVars:
-      - key: BAND_REST_URL
-        value: https://app.band.ai/
-      - key: BAND_WS_URL
-        value: wss://app.band.ai/api/v1/socket/websocket
       - key: BAND_USER_HANDLE
-        sync: false
-      - key: BAND_CHAT_ID
         sync: false
       - key: GROQ_API_KEYS
         sync: false

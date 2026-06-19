@@ -487,6 +487,24 @@ def export_pdf():
     except Exception as e:
         raise HTTPException(500, f"Failed to generate PDF: {e}")
 
+
+@app.on_event("startup")
+def startup_event():
+    # Start agents automatically when running on Render
+    if os.getenv("RENDER") == "true" or os.getenv("START_AGENTS") == "true":
+        import subprocess
+        import sys
+        print("[API] RENDER environment detected. Starting agent swarm background processes...")
+        try:
+            subprocess.Popen(
+                [sys.executable, "run_all.py"],
+                env={**os.environ, "PYTHONIOENCODING": "utf-8", "PYTHONUNBUFFERED": "1"},
+            )
+            print("[API] Agent swarm started successfully.")
+        except Exception as e:
+            print(f"[API ERROR] Failed to start agent swarm: {e}")
+
+
 # ─────────────────────────────────────────────
 # SERVE REACT BUILD (production)
 # ─────────────────────────────────────────────
