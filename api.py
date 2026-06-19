@@ -47,6 +47,12 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+
+@app.get("/")
+@app.get("/healthz")
+def health_check():
+    return {"status": "healthy"}
+
 # ─────────────────────────────────────────────
 # IN-MEMORY STATE  (single-user demo)
 # ─────────────────────────────────────────────
