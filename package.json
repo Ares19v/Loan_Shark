@@ -1,0 +1,7 @@
+{
+  "name": "loanshark-root",
+  "version": "1.0.0",
+  "scripts": {
+    "build": "npm install --prefix frontend && npm run --prefix frontend build && cp -R frontend/dist dist"
+  }
+}
