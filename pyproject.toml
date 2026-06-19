@@ -10,7 +10,6 @@ dependencies = [
     "langgraph",
     "python-dotenv",
     "pyyaml",
-    "streamlit",
     "requests",
     "reportlab",
     "fastapi",
