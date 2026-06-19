@@ -121,6 +121,9 @@ REQUIRED_FILES = [
     "band_client.py",
     "shared/parsing.py",
     "agents/base.py",
+    "api.py",
+    "demo_replay.py",
+    "generate_pdf.py",
     "agents/intake/agent.py",
     "agents/document/agent.py",
     "agents/credit/agent.py",
@@ -213,6 +216,7 @@ section("5 · Python Syntax (AST parse)")
 PY_FILES = [
     "app.py", "run_all.py", "preflight.py",
     "band_client.py", "shared/parsing.py", "agents/base.py",
+    "api.py", "demo_replay.py", "generate_pdf.py",
 ] + [f"agents/{a}/agent.py" for a in EXPECTED_AGENTS]
 
 for f in PY_FILES:

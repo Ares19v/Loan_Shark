@@ -1,5 +1,5 @@
-# Loan Shark — Streamlit Cloud deployment requirements
-# Generated from pyproject.toml
+# Loan Shark — deployment requirements
+# Mirrors pyproject.toml dependencies (keep in sync).
 
 band-sdk[langgraph]
 langchain-openai
@@ -9,3 +9,6 @@ pyyaml
 streamlit
 requests
 reportlab
+fastapi
+uvicorn
+openai

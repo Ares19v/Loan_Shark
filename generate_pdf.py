@@ -1336,6 +1336,93 @@ def build_appendix_c(S):
         ]))
     return story
 
+# ─── COMPLIANCE AUDIT PDF (per-application; used by api.py / React export) ─────
+
+def generate_compliance_pdf(messages, decision=None, application_id=None) -> bytes:
+    """Build a per-application compliance audit-trail PDF and return the bytes.
+
+    Consumed by api.py's /api/application/export_pdf endpoint (React UI). Each
+    ``messages`` item is ``{stage, sender_name, time, text}``; ``decision`` is the
+    LOAN_DECISION_READY payload (or None). Mirrors the Streamlit app's export so
+    both UIs produce a consistent audit document.
+    """
+    from io import BytesIO
+    from reportlab.lib.styles import getSampleStyleSheet
+    from shared.parsing import extract_json_from_message
+
+    def esc(value) -> str:
+        return (str(value).replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;"))
+
+    ss = getSampleStyleSheet()
+    title_style = ParagraphStyle("ca_title", parent=ss["Heading1"], fontName="Helvetica-Bold",
+                                 fontSize=18, textColor=NAVY, spaceAfter=6)
+    sub_style = ParagraphStyle("ca_sub", parent=ss["Normal"], fontName="Helvetica",
+                               fontSize=10, textColor=SUBTLE, spaceAfter=8)
+    body_style = ParagraphStyle("ca_body", parent=ss["Normal"], fontName="Helvetica",
+                                fontSize=9, leading=12)
+    bold_style = ParagraphStyle("ca_bold", parent=body_style, fontName="Helvetica-Bold")
+
+    story = [
+        Paragraph("LOAN SHARK FINANCIAL SERVICES", title_style),
+        Paragraph(f"Compliance Audit Trail &mdash; {esc(application_id or 'N/A')}", sub_style),
+        Spacer(1, 6),
+    ]
+
+    if decision:
+        summary = {
+            "Recommendation": decision.get("recommendation", "N/A"),
+            "Risk Category": decision.get("risk_category", "N/A"),
+            "Confidence": decision.get("confidence", "N/A"),
+            "Approved Amount": decision.get("approved_amount", "—"),
+        }
+        rows = [[Paragraph(esc(k), bold_style), Paragraph(esc(v), body_style)]
+                for k, v in summary.items()]
+        t = Table(rows, colWidths=[140, 360])
+        t.setStyle(TableStyle([
+            ("BACKGROUND", (0, 0), (-1, -1), LGREY),
+            ("BOX", (0, 0), (-1, -1), 1, BORDER),
+            ("TOPPADDING", (0, 0), (-1, -1), 4),
+            ("BOTTOMPADDING", (0, 0), (-1, -1), 4),
+            ("LEFTPADDING", (0, 0), (-1, -1), 8),
+        ]))
+        story += [t, Spacer(1, 10)]
+
+    for i, m in enumerate(messages or []):
+        stage = (m.get("stage", "") or "").upper()
+        story.append(Paragraph(
+            f"Step {i + 1}: {esc(stage)} &mdash; {esc(m.get('sender_name', '?'))} @ {esc(m.get('time', ''))}",
+            bold_style))
+        data = extract_json_from_message(m.get("text", ""))
+        if data:
+            fields = [[Paragraph(esc(k), body_style), Paragraph(esc(v)[:400], body_style)]
+                      for k, v in data.items()
+                      if k not in ("letter_body", "compliance_notes") and v is not None]
+            if fields:
+                ft = Table(fields, colWidths=[140, 360])
+                ft.setStyle(TableStyle([
+                    ("BACKGROUND", (0, 0), (-1, -1), BGTBL),
+                    ("BOX", (0, 0), (-1, -1), 0.5, BORDER),
+                    ("TOPPADDING", (0, 0), (-1, -1), 2),
+                    ("BOTTOMPADDING", (0, 0), (-1, -1), 2),
+                    ("LEFTPADDING", (0, 0), (-1, -1), 8),
+                ]))
+                story.append(ft)
+        else:
+            text = (m.get("text", "") or "")[:500]
+            if text:
+                story.append(Paragraph(esc(text), body_style))
+        story.append(Spacer(1, 5))
+
+    buf = BytesIO()
+    doc = SimpleDocTemplate(buf, pagesize=A4, leftMargin=40, rightMargin=40,
+                            topMargin=40, bottomMargin=40,
+                            title=f"Compliance Audit {application_id or ''}")
+    doc.build(story)
+    pdf = buf.getvalue()
+    buf.close()
+    return pdf
+
+
 # ─── MAIN ─────────────────────────────────────────────────────────────────────
 
 def main():
